@@ -6,6 +6,8 @@
 #include <limits.h>
 #include <inttypes.h>
 
+#include "mappers.h"
+#include "sorts.h"
 
 #ifndef __GNUC__
 
@@ -21,7 +23,8 @@ static unsigned rand_r(unsigned *seed)
 
 #endif
 
-static int fill_random_matrix(float* matrix, size_t size, float A);
+static int fill_random_uniform_array(size_t size, double array[size],
+                                     double a, double b);
 
 static int args_parse(int argc, char* argv[], int* Np) {
     int N = 0, ret = 0;
@@ -43,9 +46,10 @@ usage:
 }
 
 int main(int argc, char* argv[]) {
-    const float A = 450.0f; // А = Ф * И * О
+    const double A = 450.0; // А = Ф * И * О
     int N, ret = 0;
-    size_t i;
+    double prev, curr;
+    size_t i, size;
     struct timeval T1, T2;
     long delta_ms;
 
@@ -53,37 +57,55 @@ int main(int argc, char* argv[]) {
     if (ret)
         goto exit;
 
-    float* M1 = malloc(N * sizeof(float));
-    float* M2 = malloc((N / 2) * sizeof(float));
+    double* M1 = malloc(N * sizeof(double));
+    size = N / 2;
+    double* M2 = malloc(size * sizeof(double));
 
     gettimeofday(&T1, NULL); // запомнить текущее время T1
-    for (i = 0; i < 100; ++i) {       // 100 экспериментов
-        fill_random_matrix(M1, N, A); // Заполнить массив исходных данных размером N
-                  // Решить поставленную задачу, заполнить массив с результатами
-                  // Отсортировать массив с результатами указанным методом
+    for (i = 0; i < 100; ++i) { // 100 экспериментов
+        // Заполнить массив исходных данных размером N
+        fill_random_uniform_array(N, M1, 1.0, A);
+        fill_random_uniform_array(size, M2, A, 10.0 * A);
+
+        // Решить поставленную задачу, заполнить массив с результатами
+        for (size_t j = 0; j < N; ++j)
+            M1[j] = map_sqrt_exp(M1[j]);
+
+        prev = M2[0];
+        for (size_t j = 1; j < size; ++j) {
+            curr = map_abs_ctg(M2[j] + prev);
+            prev = M2[j];
+            M2[j] = curr;
+        }
+        for (size_t j = 0; j < size; ++j)
+            M2[j] = (M1[j] > M2[j]) ? M1[j] : M2[j];
+
+        // Отсортировать массив с результатами указанным методом
+        gnome_sort(size, M2);
 	}
     gettimeofday(&T2, NULL); // запомнить текущее время T2
-    free(M1);
     free(M2);
+    free(M1);
 
     delta_ms = (T2.tv_sec - T1.tv_sec) * 1000
         + (T2.tv_usec - T1.tv_usec) / 1000;
-    printf("\nN=%d. Milliseconds passed: %ld\n", N, delta_ms);
+    printf("N=%d. Milliseconds passed: %ld\n", N, delta_ms);
 
 exit:
     return ret;
 }
 
 
-static float random_float_r(float a, float b, unsigned* seedp) {
-    return a + ((float)rand_r(seedp)) / (((float) RAND_MAX) / (b - a));
+static inline double random_double_r(double a, double b, unsigned* seedp) {
+    return a + ((double)rand_r(seedp)) / (((double) RAND_MAX) / (b - a));
 }
 
-static int fill_random_matrix(float* matrix, size_t size, float A) {
+static int fill_random_uniform_array(size_t size, double array[size],
+                                      double a, double b) {
     unsigned seed = time(NULL);
-    if (!matrix) return EINVAL;
+    if (!array) return EINVAL;
 
     for (size_t i = 0; i < size; ++i)
-        matrix[i] = random_float_r(1.0, A, &seed);
+        array[i] = random_double_r(a, b, &seed);
     return 0;
 }

@@ -1,14 +1,15 @@
 CC=gcc
 LD=gcc
-CFLAGS=-O3 -Wall -Werror -pedantic
-LIBS=-lm
 
 INCDIR=include
 SRCDIR=src
 BUILDDIR=build
 EXECUTABLE=app
 
-all: $(BUILDDIR)/main.o
+CFLAGS=-O3 -Wall -Werror -pedantic -I$(INCDIR)
+LIBS=-lm
+
+all: $(BUILDDIR)/main.o $(BUILDDIR)/mappers.o $(BUILDDIR)/sorts.o
 	$(LD) $(LDFLAGS) $^ -o $(EXECUTABLE) $(LIBS)
 
 $(BUILDDIR):
