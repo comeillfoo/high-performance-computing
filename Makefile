@@ -1,6 +1,6 @@
 CC=gcc
 LD=gcc
-CFLAGS=-O3 -Wall -Werror
+CFLAGS=-O3 -Wall -Werror -pedantic
 LIBS=-lm
 
 INCDIR=include
