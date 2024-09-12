@@ -1,10 +1,12 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <sys/time.h>
 #include <time.h>
 #include <errno.h>
 #include <limits.h>
 #include <inttypes.h>
+#include <math.h>
 
 #include "mappers.h"
 #include "sorts.h"
@@ -23,8 +25,12 @@ static unsigned rand_r(unsigned *seed)
 
 #endif
 
+static inline bool is_even(double number) {
+    return !(((uint_least64_t) number) % 2);
+}
+
 static int fill_random_uniform_array(size_t size, double array[size],
-                                     double a, double b);
+                                     double a, double b, unsigned seed);
 
 static int args_parse(int argc, char* argv[], int* Np) {
     int N = 0, ret = 0;
@@ -48,7 +54,7 @@ usage:
 int main(int argc, char* argv[]) {
     const double A = 450.0; // А = Ф * И * О
     int N, ret = 0;
-    double prev, curr;
+    double prev, curr, X;
     size_t i, size;
     struct timeval T1, T2;
     long delta_ms;
@@ -63,11 +69,11 @@ int main(int argc, char* argv[]) {
 
     gettimeofday(&T1, NULL); // запомнить текущее время T1
     for (i = 0; i < 100; ++i) { // 100 экспериментов
-        // Заполнить массив исходных данных размером N
-        fill_random_uniform_array(N, M1, 1.0, A);
-        fill_random_uniform_array(size, M2, A, 10.0 * A);
+        // Generate. Заполнить массив исходных данных размером N
+        fill_random_uniform_array(N, M1, 1.0, A, i);
+        fill_random_uniform_array(size, M2, A, 10.0 * A, i);
 
-        // Решить поставленную задачу, заполнить массив с результатами
+        // Map. Решить поставленную задачу, заполнить массив с результатами
         for (size_t j = 0; j < N; ++j)
             M1[j] = map_sqrt_exp(M1[j]);
 
@@ -80,8 +86,17 @@ int main(int argc, char* argv[]) {
         for (size_t j = 0; j < size; ++j)
             M2[j] = (M1[j] > M2[j]) ? M1[j] : M2[j];
 
-        // Отсортировать массив с результатами указанным методом
+        // Sort. Отсортировать массив с результатами указанным методом
         gnome_sort(size, M2);
+
+        // Reduce. Сумма синусов элементов M2, у которых при делении на минимальное ненулевое целая часть четная
+        prev = M2[0];
+        for (size_t j = 1; j < size && prev == 0.0; ++j)
+            prev = M2[j];
+        X = 0.0;
+        for (size_t j = 0; j < size; ++j)
+            X += is_even(M2[j] / prev) ? sin(M2[j]) : 0.0;
+        printf("[%2zu]: X = %lf\n", i, X);
 	}
     gettimeofday(&T2, NULL); // запомнить текущее время T2
     free(M2);
@@ -101,8 +116,7 @@ static inline double random_double_r(double a, double b, unsigned* seedp) {
 }
 
 static int fill_random_uniform_array(size_t size, double array[size],
-                                      double a, double b) {
-    unsigned seed = time(NULL);
+                                     double a, double b, unsigned seed) {
     if (!array) return EINVAL;
 
     for (size_t i = 0; i < size; ++i)
