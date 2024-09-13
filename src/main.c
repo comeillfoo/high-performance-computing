@@ -2,9 +2,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <sys/time.h>
-#include <time.h>
 #include <errno.h>
-#include <limits.h>
 #include <inttypes.h>
 #include <math.h>
 #include <omp.h>
@@ -60,7 +58,7 @@ int main(int argc, char* argv[])
     int N, ret = 0;
     double prev, curr, X;
     size_t i, M;
-    struct timeval T1, T2;
+    double T1, T2;
     long delta_ms;
 
     ret = args_parse(argc, argv, &N); // N равен первому параметру командной строки
@@ -71,13 +69,13 @@ int main(int argc, char* argv[])
     double* M1 = malloc(N * sizeof(double));
     double* M2 = malloc(M * sizeof(double));
 
-    gettimeofday(&T1, NULL); // запомнить текущее время T1
+    T1 = omp_get_wtime(); // запомнить текущее время T1
     for (i = 0; i < 100; ++i) { // 100 экспериментов
         // Generate. Заполнить массив исходных данных размером N
         ret = generate_random_uniform_array(N, M1, 1.0, A, i);
-        if (ret) goto freeM1;
+        if (ret) goto freeMs;
         ret = generate_random_uniform_array(M, M2, A, 10.0 * A, i);
-        if (ret) goto freeM2;
+        if (ret) goto freeMs;
 
         // Map. Решить поставленную задачу, заполнить массив с результатами
         #pragma omp parallel for default(none) shared(N, M1)
@@ -111,15 +109,13 @@ int main(int argc, char* argv[])
             X += is_even(M2[j] / prev) ? sin(M2[j]) : 0.0;
         printf("X = %lf\n", X);
 	}
-    gettimeofday(&T2, NULL); // запомнить текущее время T2
+    T2 = omp_get_wtime(); // запомнить текущее время T2
 
-    delta_ms = (T2.tv_sec - T1.tv_sec) * 1000
-        + (T2.tv_usec - T1.tv_usec) / 1000;
+    delta_ms = (long)((T2 - T1) * 1000.0);
     printf("N=%d. Milliseconds passed: %ld\n", N, delta_ms);
 
-freeM2:
+freeMs:
     free(M2);
-freeM1:
     free(M1);
 exit:
     return ret;
