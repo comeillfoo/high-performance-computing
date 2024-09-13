@@ -4,13 +4,13 @@ LD=gcc
 INCDIR=include
 SRCDIR=src
 BUILDDIR=build
-EXECUTABLE=app
+TARGET=app
 
 CFLAGS=-O3 -Wall -Werror -pedantic -I$(INCDIR)
 LIBS=-lm
 
 all: $(BUILDDIR)/main.o $(BUILDDIR)/mappers.o $(BUILDDIR)/sorts.o
-	$(LD) $(LDFLAGS) $^ -o $(EXECUTABLE) $(LIBS)
+	$(LD) $(LDFLAGS) $^ -o $(TARGET) $(LIBS)
 
 $(BUILDDIR):
 	mkdir -p $@
@@ -20,6 +20,6 @@ $(BUILDDIR)/%.o: $(SRCDIR)/%.c $(BUILDDIR)
 
 clean:
 	rm -rf $(BUILDDIR)
-	rm -f $(EXECUTABLE)
+	rm -f $(TARGET)
 
 .PHONY: clean
