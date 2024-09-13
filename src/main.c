@@ -96,7 +96,7 @@ int main(int argc, char* argv[]) {
         X = 0.0;
         for (size_t j = 0; j < size; ++j)
             X += is_even(M2[j] / prev) ? sin(M2[j]) : 0.0;
-        printf("[%2zu]: X = %lf\n", i, X);
+        printf("X = %lf\n", X);
 	}
     gettimeofday(&T2, NULL); // запомнить текущее время T2
     free(M2);
