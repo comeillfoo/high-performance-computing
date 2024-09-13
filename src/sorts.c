@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include <pthread.h>
 
 #include "sorts.h"
 
@@ -48,6 +49,41 @@ static inline void _omp_gnome_sort(size_t size, double array[size],
 }
 #endif
 
+#ifdef _PTHREAD_H
+struct _sort_routine_args
+{
+    size_t size;
+    double* sorted;
+    double* array;
+};
+
+static void* _gnome_sort_routine(void* args)
+{
+    struct _sort_routine_args* sort_args = (struct _sort_routine_args*)args;
+    for (size_t i = 0; i < sort_args->size; ++i)
+        sort_args->sorted[i] = sort_args->array[i];
+    _gnome_sort(sort_args->size, sort_args->sorted);
+    return (void*) 0;
+}
+
+static void _pthread_gnome_sort(size_t size, double array[size],
+                                size_t lsize, double left[lsize],
+                                size_t rsize, double right[rsize])
+{
+    pthread_t threads_id[2];
+    struct _sort_routine_args threads_args[] = {
+        { lsize, left, array },
+        { rsize, right, array + lsize }
+    };
+    for (size_t i = 0; i < 2; ++i) {
+        pthread_create(&threads_id[i], NULL, _gnome_sort_routine,
+                       (void*)(&threads_args[i]));
+    }
+    for (size_t i = 0; i < 2; ++i)
+        pthread_join(threads_id[i], NULL);
+}
+#endif
+
 static void _parallel_gnome_sort(size_t size, double array[size])
 {
     const size_t lsize = size / 2;
@@ -56,6 +92,8 @@ static void _parallel_gnome_sort(size_t size, double array[size])
     double left[lsize], right[rsize];
 #ifdef _OPENMP
     _omp_gnome_sort(size, array, lsize, left, rsize, right);
+#elif defined(_PTHREAD_H)
+    _pthread_gnome_sort(size, array, lsize, left, rsize, right);
 #else
     #error Fatal bug on compiling: without libs should be sequential sort picked
 #endif
@@ -81,11 +119,10 @@ static void _parallel_gnome_sort(size_t size, double array[size])
         ++j; ++k;
     }
 }
-#endif
 
 void sort(size_t size, double array[size])
 {
-#ifdef _OPENMP
+#if defined(_OPENMP) || defined(_PTHREAD_H)
     _parallel_gnome_sort(size, array);
 #else
     _gnome_sort(size, array);
