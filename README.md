@@ -10,3 +10,8 @@
 
 - N1: 438
 - N2: 10451
+
+## OpenMP stage results
+
+- N1: 2
+- N2: 9928
