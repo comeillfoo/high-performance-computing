@@ -2,9 +2,11 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <sys/time.h>
+#include <time.h>
 #include <errno.h>
 #include <inttypes.h>
 #include <math.h>
+#include <pthread.h>
 
 #include "mappers.h"
 #include "sorts.h"
@@ -122,21 +124,63 @@ exit:
 }
 
 
-static double random_double_r(double a, double b, unsigned* seedp)
+static inline double random_double_r(double a, double b, unsigned* seedp)
 {
-    double number = 0.0;
-    // #pragma omp critical
-    number = (double)rand_r(seedp);
-    return a + number / (((double) RAND_MAX) / (b - a));
+    return a + ((double)rand_r(seedp)) / (((double) RAND_MAX) / (b - a));
+}
+
+struct _generate_array_args
+{
+    double a;
+    double b;
+    size_t size;
+    double* array;
+};
+
+static void* _generate_random_uniform_subarray(void* arg)
+{
+    struct timespec ts;
+    unsigned seed;
+    if (clock_gettime(CLOCK_REALTIME, &ts))
+        return (void*)((intptr_t) errno);
+    seed = ts.tv_sec ^ ts.tv_nsec;
+
+    struct _generate_array_args* args = (struct _generate_array_args*)arg;
+    for (size_t i = 0; i < args->size; ++i)
+        args->array[i] = random_double_r(args->a, args->b, &seed);
+    return 0;
 }
 
 static int generate_random_uniform_array(size_t size, double array[size],
                                          double a, double b, unsigned seed)
 {
+    int ret = 0;
+    const size_t threads = 4;
+    pthread_t threads_id[threads];
+    struct _generate_array_args threads_args[threads];
+    const size_t subsize = size / threads;
+    const size_t rem = size % threads;
     if (!array) return EINVAL;
 
-    // #pragma omp parallel for default(none) shared(seed, a, b, size, array)
-    for (size_t i = 0; i < size; ++i)
-        array[i] = random_double_r(a, b, &seed);
-    return 0;
+    for (size_t i = 0; i < threads; ++i) {
+        threads_args[i].a = a;
+        threads_args[i].b = b;
+        threads_args[i].size = subsize + ((i < rem) ? 1 : 0);
+        threads_args[i].array = (i > 0)
+            ? (threads_args[i - 1].array + threads_args[i - 1].size)
+            : array;
+        ret = pthread_create(&threads_id[i], NULL, _generate_random_uniform_subarray,
+                             (void*) &threads_args[i]);
+        if (ret) goto exit;
+    }
+
+    for (size_t i = 0; i < threads; ++i) {
+        int thread_ret = 0;
+        ret = pthread_join(threads_id[i], (void**)(&thread_ret));
+        if (ret) break;
+        ret = thread_ret;
+        if (ret) break;
+    }
+exit:
+    return ret;
 }
