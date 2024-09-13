@@ -42,7 +42,7 @@ static void _omp_gnome_sort(size_t size, double array[size])
 
         #pragma omp section
         {
-            for (j = 0; i < right_size; ++i)
+            for (j = 0; j < right_size; ++j)
                 right[j] = array[j + left_size];
             _gnome_sort(right_size, right);
         }
