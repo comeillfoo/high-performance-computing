@@ -75,15 +75,22 @@ int main(int argc, char* argv[]) {
         fill_random_uniform_array(size, M2, A, 10.0 * A, i);
 
         // Map. Решить поставленную задачу, заполнить массив с результатами
+        #pragma omp parallel for default(none) shared(N, M1)
         for (size_t j = 0; j < N; ++j)
             M1[j] = map_sqrt_exp(M1[j]);
 
         prev = M2[0];
+        #pragma omp parallel for default(none) private(curr) shared(M2, prev, size)
         for (size_t j = 1; j < size; ++j) {
-            curr = map_abs_ctg(M2[j] + prev);
-            prev = M2[j];
+            #pragma omp critical
+            {
+                curr = map_abs_ctg(M2[j] + prev);
+                prev = M2[j];
+            }
             M2[j] = curr;
         }
+
+        #pragma omp parallel for default(none) shared(M1, M2, size)
         for (size_t j = 0; j < size; ++j)
             M2[j] = (M1[j] > M2[j]) ? M1[j] : M2[j];
 
@@ -92,11 +99,17 @@ int main(int argc, char* argv[]) {
 
         // Reduce. Сумма синусов элементов M2, у которых при делении на минимальное ненулевое целая часть четная
         prev = M2[0];
+        // no pragma because: (1) array is already sorted and (2) just looking for first non-zero minimum
         for (size_t j = 1; j < size && prev == 0.0; ++j)
             prev = M2[j];
+
         X = 0.0;
-        for (size_t j = 0; j < size; ++j)
-            X += is_even(M2[j] / prev) ? sin(M2[j]) : 0.0;
+        # pragma omp parallel for default(none) shared(M2, size, prev, X)
+        for (size_t j = 0; j < size; ++j) {
+            double x = is_even(M2[j] / prev) ? sin(M2[j]) : 0.0;
+            #pragma omp atomic
+            X += x;
+        }
         printf("X = %lf\n", X);
 	}
     gettimeofday(&T2, NULL); // запомнить текущее время T2
@@ -112,15 +125,18 @@ exit:
 }
 
 
-static inline double random_double_r(double a, double b, unsigned* seedp) {
-    return a + ((double)rand_r(seedp)) / (((double) RAND_MAX) / (b - a));
+static double random_double_r(double a, double b, unsigned* seedp) {
+    double number = 0.0;
+    #pragma omp critical
+    number = (double)rand_r(seedp);
+    return a + number / (((double) RAND_MAX) / (b - a));
 }
 
 static int fill_random_uniform_array(size_t size, double array[size],
                                      double a, double b, unsigned seed) {
     if (!array) return EINVAL;
 
-    #pragma omp parallel for default(none) private(seed) shared(a, b, size, array)
+    #pragma omp parallel for default(none) shared(seed, a, b, size, array)
     for (size_t i = 0; i < size; ++i)
         array[i] = random_double_r(a, b, &seed);
     return 0;
