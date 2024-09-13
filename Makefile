@@ -6,7 +6,7 @@ SRCDIR=src
 BUILDDIR=build
 EXECUTABLE=app
 
-CFLAGS=-O3 -Wall -Werror -pedantic -I$(INCDIR)
+CFLAGS=-O3 -Wall -Werror -pedantic -fopenmp -I$(INCDIR)
 LIBS=-lm
 
 all: $(BUILDDIR)/main.o $(BUILDDIR)/mappers.o $(BUILDDIR)/sorts.o
