@@ -5,7 +5,6 @@
 #include <errno.h>
 #include <inttypes.h>
 #include <math.h>
-#include <omp.h>
 
 #include "mappers.h"
 #include "sorts.h"
@@ -58,7 +57,7 @@ int main(int argc, char* argv[])
     int N, ret = 0;
     double prev, curr, X;
     size_t i, M;
-    double T1, T2;
+    struct timeval T1, T2;
     long delta_ms;
 
     ret = args_parse(argc, argv, &N); // N равен первому параметру командной строки
@@ -69,7 +68,7 @@ int main(int argc, char* argv[])
     double* M1 = malloc(N * sizeof(double));
     double* M2 = malloc(M * sizeof(double));
 
-    T1 = omp_get_wtime(); // запомнить текущее время T1
+    gettimeofday(&T1, NULL); // запомнить текущее время T1
     for (i = 0; i < 100; ++i) { // 100 экспериментов
         // Generate. Заполнить массив исходных данных размером N
         ret = generate_random_uniform_array(N, M1, 1.0, A, i);
@@ -78,7 +77,7 @@ int main(int argc, char* argv[])
         if (ret) goto freeMs;
 
         // Map. Решить поставленную задачу, заполнить массив с результатами
-        #pragma omp parallel for default(none) shared(N, M1)
+        // #pragma omp parallel for default(none) shared(N, M1)
         for (size_t j = 0; j < N; ++j)
             M1[j] = map_sqrt_exp(M1[j]);
 
@@ -90,7 +89,7 @@ int main(int argc, char* argv[])
             M2[j] = curr;
         }
 
-        #pragma omp parallel for default(none) shared(M1, M2, M)
+        // #pragma omp parallel for default(none) shared(M1, M2, M)
         for (size_t j = 0; j < M; ++j)
             M2[j] = (M1[j] > M2[j]) ? M1[j] : M2[j];
 
@@ -104,14 +103,15 @@ int main(int argc, char* argv[])
 
         // Reduce. Сумма синусов элементов M2, у которых при делении на минимальное ненулевое целая часть четная
         X = 0.0;
-        # pragma omp parallel for default(none) shared(M2, M, prev) reduction(+:X)
+        // # pragma omp parallel for default(none) shared(M2, M, prev) reduction(+:X)
         for (size_t j = 0; j < M; ++j)
             X += is_even(M2[j] / prev) ? sin(M2[j]) : 0.0;
         printf("X = %lf\n", X);
 	}
-    T2 = omp_get_wtime(); // запомнить текущее время T2
+    gettimeofday(&T2, NULL);; // запомнить текущее время T2
 
-    delta_ms = (long)((T2 - T1) * 1000.0);
+    delta_ms = (T2.tv_sec - T1.tv_sec) * 1000
+        + (T2.tv_usec - T1.tv_usec) / 1000;
     printf("N=%d. Milliseconds passed: %ld\n", N, delta_ms);
 
 freeMs:
@@ -125,7 +125,7 @@ exit:
 static double random_double_r(double a, double b, unsigned* seedp)
 {
     double number = 0.0;
-    #pragma omp critical
+    // #pragma omp critical
     number = (double)rand_r(seedp);
     return a + number / (((double) RAND_MAX) / (b - a));
 }
@@ -135,7 +135,7 @@ static int generate_random_uniform_array(size_t size, double array[size],
 {
     if (!array) return EINVAL;
 
-    #pragma omp parallel for default(none) shared(seed, a, b, size, array)
+    // #pragma omp parallel for default(none) shared(seed, a, b, size, array)
     for (size_t i = 0; i < size; ++i)
         array[i] = random_double_r(a, b, &seed);
     return 0;

@@ -1,5 +1,4 @@
 #include <stdint.h>
-#include <omp.h>
 
 #include "sorts.h"
 
@@ -25,6 +24,7 @@ static void _gnome_sort(size_t size, double array[size])
     }
 }
 
+#ifdef _OPENMP
 static void _omp_gnome_sort(size_t size, double array[size])
 {
     const size_t left_size = size / 2;
@@ -69,8 +69,13 @@ static void _omp_gnome_sort(size_t size, double array[size])
         ++j; ++k;
     }
 }
+#endif
 
 void sort(size_t size, double array[size])
 {
+#ifdef _OPENMP
     _omp_gnome_sort(size, array);
+#else
+    _gnome_sort(size, array);
+#endif
 }

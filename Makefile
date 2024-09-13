@@ -6,8 +6,8 @@ SRCDIR=src
 BUILDDIR=build
 TARGET=app
 
-CFLAGS=-O3 -Wall -Werror -pedantic -fopenmp -I$(INCDIR)
-LIBS=-lm -lgomp
+CFLAGS=-O3 -Wall -Werror -pedantic -I$(INCDIR)
+LIBS=-lm -lpthread
 
 all: $(BUILDDIR)/main.o $(BUILDDIR)/mappers.o $(BUILDDIR)/sorts.o
 	$(LD) $(LDFLAGS) $^ -o $(TARGET) $(LIBS)
