@@ -7,6 +7,7 @@
 #include <limits.h>
 #include <inttypes.h>
 #include <math.h>
+#include <omp.h>
 
 #include "mappers.h"
 #include "sorts.h"
@@ -119,6 +120,7 @@ static int fill_random_uniform_array(size_t size, double array[size],
                                      double a, double b, unsigned seed) {
     if (!array) return EINVAL;
 
+    #pragma omp parallel for default(none) private(seed) shared(a, b, size, array)
     for (size_t i = 0; i < size; ++i)
         array[i] = random_double_r(a, b, &seed);
     return 0;
