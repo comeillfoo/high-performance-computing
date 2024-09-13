@@ -14,4 +14,4 @@
 ## OpenMP stage results
 
 - $N_1$: 2
-- $N_2$: 9937
+- $N_2$: 18607
