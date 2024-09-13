@@ -2,9 +2,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <sys/time.h>
-#include <time.h>
 #include <errno.h>
-#include <limits.h>
 #include <inttypes.h>
 #include <math.h>
 
