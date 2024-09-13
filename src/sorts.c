@@ -24,32 +24,42 @@ static void _gnome_sort(size_t size, double array[size])
     }
 }
 
-#ifdef _OPENMP
-static void _omp_gnome_sort(size_t size, double array[size])
+static inline void _omp_gnome_sort(size_t size, double array[size],
+                                   size_t lsize, double left[lsize],
+                                   size_t rsize, double right[rsize])
 {
-    const size_t left_size = size / 2;
-    const size_t right_size = size - left_size;
-    size_t i = 0, j = 0, k = 0;
-    double left[left_size], right[right_size];
     #pragma omp parallel sections
     {
         #pragma omp section
         {
-            for (i = 0; i < left_size; ++i)
+            for (size_t i = 0; i < lsize; ++i)
                 left[i] = array[i];
-            _gnome_sort(left_size, left);
+            _gnome_sort(lsize, left);
         }
 
         #pragma omp section
         {
-            for (j = 0; j < right_size; ++j)
-                right[j] = array[j + left_size];
-            _gnome_sort(right_size, right);
+            for (size_t j = 0; j < rsize; ++j)
+                right[j] = array[j + lsize];
+            _gnome_sort(rsize, right);
         }
     }
+}
+
+static void _parallel_gnome_sort(size_t size, double array[size])
+{
+    const size_t lsize = size / 2;
+    const size_t rsize = size - lsize;
+    size_t i = 0, j = 0, k = 0;
+    double left[lsize], right[rsize];
+#ifdef _OPENMP
+    _omp_gnome_sort(size, array, lsize, left, rsize, right);
+#else
+    #error Fatal bug on compiling: without libs should be sequential sort picked
+#endif
     i = 0;
     j = 0;
-    while (i < left_size && j < right_size) {
+    while (i < lsize && j < rsize) {
         if (left[i] < right[j]) {
             array[k] = left[i];
             ++i; ++k;
@@ -59,12 +69,12 @@ static void _omp_gnome_sort(size_t size, double array[size])
         ++j; ++k;
     }
 
-    while (i < left_size) {
+    while (i < lsize) {
         array[k] = left[i];
         ++i; ++k;
     }
 
-    while (j < right_size) {
+    while (j < rsize) {
         array[k] = right[j];
         ++j; ++k;
     }
@@ -74,7 +84,7 @@ static void _omp_gnome_sort(size_t size, double array[size])
 void sort(size_t size, double array[size])
 {
 #ifdef _OPENMP
-    _omp_gnome_sort(size, array);
+    _parallel_gnome_sort(size, array);
 #else
     _gnome_sort(size, array);
 #endif
