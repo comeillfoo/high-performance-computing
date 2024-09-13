@@ -101,12 +101,9 @@ int main(int argc, char* argv[]) {
             prev = M2[j];
 
         X = 0.0;
-        # pragma omp parallel for default(none) shared(M2, size, prev, X)
-        for (size_t j = 0; j < size; ++j) {
-            double x = is_even(M2[j] / prev) ? sin(M2[j]) : 0.0;
-            #pragma omp atomic
-            X += x;
-        }
+        # pragma omp parallel for default(none) shared(M2, size, prev) reduction(+:X)
+        for (size_t j = 0; j < size; ++j)
+            X += is_even(M2[j] / prev) ? sin(M2[j]) : 0.0;
         printf("X = %lf\n", X);
 	}
     gettimeofday(&T2, NULL); // запомнить текущее время T2

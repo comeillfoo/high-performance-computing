@@ -8,10 +8,10 @@
 
 ## Plain stage results
 
-- N1: 438
-- N2: 10451
+- $N_1$: 438
+- $N_2$: 10451
 
 ## OpenMP stage results
 
-- N1: 2
-- N2: 9928
+- $N_1$: 2
+- $N_2$: 9937
