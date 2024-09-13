@@ -7,7 +7,7 @@ BUILDDIR=build
 TARGET=app
 
 CFLAGS=-O3 -Wall -Werror -pedantic -fopenmp -I$(INCDIR)
-LIBS=-lm
+LIBS=-lm -lgomp
 
 all: $(BUILDDIR)/main.o $(BUILDDIR)/mappers.o $(BUILDDIR)/sorts.o
 	$(LD) $(LDFLAGS) $^ -o $(TARGET) $(LIBS)
