@@ -3,13 +3,15 @@
 #include "sorts.h"
 
 static inline void swap(uint_least64_t* restrict a,
-                        uint_least64_t* restrict b) {
+                        uint_least64_t* restrict b)
+{
     *a ^= *b;
     *b ^= *a;
     *a ^= *b;
 }
 
-void gnome_sort(size_t size, double array[size]) {
+static void gnome_sort(size_t size, double array[size])
+{
     size_t i = 0;
     while (i < size) {
         if (i == 0 || array[i] >= array[i - 1]) {
@@ -20,4 +22,9 @@ void gnome_sort(size_t size, double array[size]) {
              (uint_least64_t*)(array + (i - 1)));
         --i;
     }
+}
+
+void sort(size_t size, double array[size])
+{
+    gnome_sort(size, array);
 }
