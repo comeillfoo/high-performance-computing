@@ -24,6 +24,7 @@ static void _gnome_sort(size_t size, double array[size])
     }
 }
 
+#ifdef _OPENMP
 static inline void _omp_gnome_sort(size_t size, double array[size],
                                    size_t lsize, double left[lsize],
                                    size_t rsize, double right[rsize])
@@ -45,6 +46,7 @@ static inline void _omp_gnome_sort(size_t size, double array[size],
         }
     }
 }
+#endif
 
 static void _parallel_gnome_sort(size_t size, double array[size])
 {
