@@ -23,6 +23,8 @@ Sources:
 Theory:
 
 1. [Дизайн OpenCL](http://opencl.ru/design)
+2. [OpenCL Programming model](https://github.com/KhronosGroup/OpenCL-Guide/blob/main/chapters/opencl_programming_model.md)
+3. [OpenCL Book](https://fixstars.github.io/opencl-book/opencl-book/basic-opencl/basic-program-flow.html)
 
 ## System Description
 

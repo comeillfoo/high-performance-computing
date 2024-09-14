@@ -6,7 +6,6 @@
 #include <errno.h>
 #include <inttypes.h>
 #include <math.h>
-#include <CL/cl.h>
 
 #include "mappers.h"
 #include "sorts.h"
