@@ -31,7 +31,9 @@ static inline bool is_even(double number)
 }
 
 static int generate_random_uniform_array(size_t size, double array[size],
-                                         double a, double b, unsigned seed);
+                                         double a, double b, size_t threads);
+static int parallel_selector_arrays(size_t size, double src[size],
+                                    double dst[size], size_t threads);
 
 static int args_parse(int argc, char* argv[], int* Np)
 {
@@ -63,8 +65,7 @@ int main(int argc, char* argv[])
     long delta_ms;
 
     ret = args_parse(argc, argv, &N); // N равен первому параметру командной строки
-    if (ret)
-        goto exit;
+    if (ret) goto exit;
     M = N / 2;
 
     double* M1 = malloc(N * sizeof(double));
@@ -73,15 +74,14 @@ int main(int argc, char* argv[])
     gettimeofday(&T1, NULL); // запомнить текущее время T1
     for (i = 0; i < 100; ++i) { // 100 экспериментов
         // Generate. Заполнить массив исходных данных размером N
-        ret = generate_random_uniform_array(N, M1, 1.0, A, i);
+        ret = generate_random_uniform_array(N, M1, 1.0, A, 4);
         if (ret) goto freeMs;
-        ret = generate_random_uniform_array(M, M2, A, 10.0 * A, i);
+        ret = generate_random_uniform_array(M, M2, A, 10.0 * A, 4);
         if (ret) goto freeMs;
 
         // Map. Решить поставленную задачу, заполнить массив с результатами
-        // #pragma omp parallel for default(none) shared(N, M1)
-        for (size_t j = 0; j < N; ++j)
-            M1[j] = map_sqrt_exp(M1[j]);
+        ret = parallel_map_array(N, M1, map_sqrt_exp, 4);
+        if (ret) goto freeMs;
 
         prev = M2[0];
         // no pragmas because: of read/write dependencies
@@ -92,8 +92,8 @@ int main(int argc, char* argv[])
         }
 
         // #pragma omp parallel for default(none) shared(M1, M2, M)
-        for (size_t j = 0; j < M; ++j)
-            M2[j] = (M1[j] > M2[j]) ? M1[j] : M2[j];
+        ret = parallel_selector_arrays(M, M1, M2, 4);
+        if (ret) goto freeMs;
 
         // Sort. Отсортировать массив с результатами указанным методом
         sort(M, M2);
@@ -137,7 +137,7 @@ struct _generate_array_args
     double* array;
 };
 
-static void* _generate_random_uniform_subarray(void* arg)
+static void* _generate_random_subarray(void* arg)
 {
     struct timespec ts;
     unsigned seed;
@@ -152,10 +152,9 @@ static void* _generate_random_uniform_subarray(void* arg)
 }
 
 static int generate_random_uniform_array(size_t size, double array[size],
-                                         double a, double b, unsigned seed)
+                                         double a, double b, size_t threads)
 {
     int ret = 0;
-    const size_t threads = 4;
     pthread_t threads_id[threads];
     struct _generate_array_args threads_args[threads];
     const size_t subsize = size / threads;
@@ -169,9 +168,9 @@ static int generate_random_uniform_array(size_t size, double array[size],
         threads_args[i].array = (i > 0)
             ? (threads_args[i - 1].array + threads_args[i - 1].size)
             : array;
-        ret = pthread_create(&threads_id[i], NULL, _generate_random_uniform_subarray,
+        ret = pthread_create(&threads_id[i], NULL, _generate_random_subarray,
                              (void*) &threads_args[i]);
-        if (ret) goto exit;
+        if (ret) return ret;
     }
 
     for (size_t i = 0; i < threads; ++i) {
@@ -181,6 +180,58 @@ static int generate_random_uniform_array(size_t size, double array[size],
         ret = thread_ret;
         if (ret) break;
     }
-exit:
+
+    return ret;
+}
+
+
+struct selector_args
+{
+    size_t size;
+    double* src;
+    double* dst;
+};
+
+
+static void* select_max_routine(void* arg)
+{
+#define MAX(a, b) (((a) > (b))? (a) : (b))
+    struct selector_args* args = (struct selector_args*) arg;
+    for (size_t i = 0; i < args->size; ++i)
+        args->dst[i] = MAX(args->src[i], args->dst[i]);
+    return 0;
+#undef MAX
+}
+
+
+static int parallel_selector_arrays(size_t size, double src[size],
+                                    double dst[size], size_t threads)
+{
+    int ret = 0;
+    pthread_t threads_id[threads];
+    struct selector_args threads_args[threads];
+    const size_t subsize = size / threads;
+    const size_t rem = size % threads;
+    for (size_t i = 0; i < threads; ++i) {
+        threads_args[i].size = subsize + ((i < rem) ? 1 : 0);
+        threads_args[i].src = (i > 0)
+            ? (threads_args[i - 1].src + threads_args[i - 1].size)
+            : src;
+        threads_args[i].dst = (i > 0)
+            ? (threads_args[i - 1].dst + threads_args[i - 1].size)
+            : dst;
+        ret = pthread_create(&threads_id[i], NULL, select_max_routine,
+                       (void*)&threads_args[i]);
+        if (ret) return ret;
+    }
+
+    for (size_t i = 0; i < threads; ++i) {
+        int thread_ret = 0;
+        ret = pthread_join(threads_id[i], (void**)&thread_ret);
+        if (ret) break;
+        ret = thread_ret;
+        if (ret) break;
+    }
+
     return ret;
 }
