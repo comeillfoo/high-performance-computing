@@ -46,3 +46,12 @@ int oclw_create_context(cl_device_id* device_id, cl_context* ctx)
     oclw_error(cl_ret, "Unable to create OCL context");
     return 1;
 }
+
+int oclw_destroy_context(cl_context ctx)
+{
+    cl_int cl_ret = 0;
+    cl_ret = clReleaseContext(ctx);
+    if (cl_ret == CL_SUCCESS) return 0;
+    oclw_error(cl_ret, "Unable to destroy OCL context");
+    return 1;
+}

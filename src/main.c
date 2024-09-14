@@ -7,6 +7,7 @@
 #include <inttypes.h>
 #include <math.h>
 
+#include "oclw.h"
 #include "mappers.h"
 #include "sorts.h"
 
@@ -70,9 +71,20 @@ int main(int argc, char* argv[])
     struct timeval T1, T2;
     long delta_ms;
 
+    cl_platform_id cl_platform_id = NULL;
+    cl_device_id cl_device_id = NULL;
+    cl_context cl_context = NULL;
+
     ret = args_parse(argc, argv, &N); // N равен первому параметру командной строки
     if (ret) goto exit;
     M = N / 2;
+
+    ret = oclw_get_platform(&cl_platform_id);
+    if (ret) goto exit;
+    ret = oclw_select_device(cl_platform_id, &cl_device_id);
+    if (ret) goto exit;
+    ret = oclw_create_context(&cl_device_id, &cl_context);
+    if (ret) goto cl_free_context;
 
     double* M1 = malloc(N * sizeof(double));
     double* M2 = malloc(M * sizeof(double));
@@ -145,6 +157,8 @@ int main(int argc, char* argv[])
 freeMs:
     free(M2);
     free(M1);
+cl_free_context:
+    ret |= oclw_destroy_context(cl_context);
 exit:
     return ret;
 }
