@@ -34,6 +34,8 @@ static int generate_random_uniform_array(size_t size, double array[size],
                                          double a, double b, size_t threads);
 static int parallel_selector_arrays(size_t size, double src[size],
                                     double dst[size], size_t threads);
+static int parallel_reduce_array(double* acc, size_t size, double array[size],
+                                 double min, size_t threads);
 
 static int args_parse(int argc, char* argv[], int* Np)
 {
@@ -105,9 +107,9 @@ int main(int argc, char* argv[])
 
         // Reduce. Сумма синусов элементов M2, у которых при делении на минимальное ненулевое целая часть четная
         X = 0.0;
-        // # pragma omp parallel for default(none) shared(M2, M, prev) reduction(+:X)
-        for (size_t j = 0; j < M; ++j)
-            X += is_even(M2[j] / prev) ? sin(M2[j]) : 0.0;
+        ret = parallel_reduce_array(&X, M, M2, prev, 4);
+        if (ret) goto freeMs;
+
         printf("X = %lf\n", X);
 	}
     gettimeofday(&T2, NULL);; // запомнить текущее время T2
@@ -185,31 +187,29 @@ static int generate_random_uniform_array(size_t size, double array[size],
 }
 
 
-struct selector_args
+struct _selector_args
 {
     size_t size;
     double* src;
     double* dst;
 };
 
-
 static void* select_max_routine(void* arg)
 {
 #define MAX(a, b) (((a) > (b))? (a) : (b))
-    struct selector_args* args = (struct selector_args*) arg;
+    struct _selector_args* args = (struct _selector_args*) arg;
     for (size_t i = 0; i < args->size; ++i)
         args->dst[i] = MAX(args->src[i], args->dst[i]);
     return 0;
 #undef MAX
 }
 
-
 static int parallel_selector_arrays(size_t size, double src[size],
                                     double dst[size], size_t threads)
 {
     int ret = 0;
     pthread_t threads_id[threads];
-    struct selector_args threads_args[threads];
+    struct _selector_args threads_args[threads];
     const size_t subsize = size / threads;
     const size_t rem = size % threads;
     for (size_t i = 0; i < threads; ++i) {
@@ -231,6 +231,55 @@ static int parallel_selector_arrays(size_t size, double src[size],
         if (ret) break;
         ret = thread_ret;
         if (ret) break;
+    }
+
+    return ret;
+}
+
+
+struct _reduce_args
+{
+    size_t size;
+    double* array;
+    double min;
+};
+
+static void* add_sin_if_even(void* arg)
+{
+    double* acc = malloc(sizeof(double));
+    if (!acc) return NULL;
+    *acc = 0.0;
+    struct _reduce_args* args = (struct _reduce_args*) arg;
+    for (size_t i = 0; i < args->size; ++i)
+        *acc += is_even(args->array[i] / args->min) ? sin(args->array[i]) : 0.0;
+    return acc;
+}
+
+static int parallel_reduce_array(double* acc, size_t size, double array[size],
+                                 double min, size_t threads)
+{
+    int ret = 0;
+    pthread_t threads_id[threads];
+    struct _reduce_args threads_args[threads];
+    const size_t subsize = size / threads;
+    const size_t rem = size % threads;
+    for (size_t i = 0; i < threads; ++i) {
+        threads_args[i].size = subsize + ((i < rem) ? 1 : 0);
+        threads_args[i].array = (i > 0)
+            ? (threads_args[i - 1].array + threads_args[i - 1].size)
+            : array;
+        ret = pthread_create(&threads_id[i], NULL, add_sin_if_even,
+                       (void*)&threads_args[i]);
+        if (ret) return ret;
+    }
+
+    for (size_t i = 0; i < threads; ++i) {
+        double* thread_ret = NULL;
+        ret = pthread_join(threads_id[i], (void**)&thread_ret);
+        if (ret) break;
+        if (!thread_ret) break;
+        *acc += *thread_ret;
+        free(thread_ret);
     }
 
     return ret;
