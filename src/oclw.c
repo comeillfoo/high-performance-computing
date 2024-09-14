@@ -55,3 +55,22 @@ int oclw_destroy_context(cl_context ctx)
     oclw_error(cl_ret, "Unable to destroy OCL context");
     return 1;
 }
+
+int oclw_create_cmd_queue(cl_context ctx, cl_device_id device_id,
+                          cl_command_queue* queue)
+{
+    cl_int cl_ret = 0;
+    *queue = clCreateCommandQueueWithProperties(ctx, device_id, NULL, &cl_ret);
+    if (cl_ret == CL_SUCCESS) return 0;
+    oclw_error(cl_ret, "Unable to create command queue");
+    return 1;
+}
+
+int oclw_destroy_cmd_queue(cl_command_queue queue)
+{
+    cl_int cl_ret = 0;
+    cl_ret = clReleaseCommandQueue(queue);
+    if (cl_ret == CL_SUCCESS) return 0;
+    oclw_error(cl_ret, "Unable to destroy command queue");
+    return 1;
+}

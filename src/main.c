@@ -74,6 +74,7 @@ int main(int argc, char* argv[])
     cl_platform_id cl_platform_id = NULL;
     cl_device_id cl_device_id = NULL;
     cl_context cl_context = NULL;
+    cl_command_queue cl_queue = NULL;
 
     ret = args_parse(argc, argv, &N); // N равен первому параметру командной строки
     if (ret) goto exit;
@@ -84,6 +85,8 @@ int main(int argc, char* argv[])
     ret = oclw_select_device(cl_platform_id, &cl_device_id);
     if (ret) goto exit;
     ret = oclw_create_context(&cl_device_id, &cl_context);
+    if (ret) goto exit;
+    ret = oclw_create_cmd_queue(cl_context, cl_device_id, &cl_queue);
     if (ret) goto cl_free_context;
 
     double* M1 = malloc(N * sizeof(double));
@@ -157,6 +160,7 @@ int main(int argc, char* argv[])
 freeMs:
     free(M2);
     free(M1);
+    ret |= oclw_destroy_cmd_queue(cl_queue);
 cl_free_context:
     ret |= oclw_destroy_context(cl_context);
 exit:
