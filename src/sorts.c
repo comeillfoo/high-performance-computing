@@ -1,5 +1,4 @@
 #include <stdint.h>
-#include <pthread.h>
 
 #include "sorts.h"
 
@@ -84,6 +83,7 @@ static void _pthread_gnome_sort(size_t size, double array[size],
 }
 #endif
 
+#if defined(_OPENMP) || defined(_PTHREAD_H)
 static void _parallel_gnome_sort(size_t size, double array[size])
 {
     const size_t lsize = size / 2;
@@ -119,6 +119,7 @@ static void _parallel_gnome_sort(size_t size, double array[size])
         ++j; ++k;
     }
 }
+#endif
 
 void sort(size_t size, double array[size])
 {

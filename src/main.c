@@ -6,7 +6,7 @@
 #include <errno.h>
 #include <inttypes.h>
 #include <math.h>
-#include <pthread.h>
+#include <CL/cl.h>
 
 #include "mappers.h"
 #include "sorts.h"
@@ -30,12 +30,17 @@ static inline bool is_even(double number)
     return !(((uint_least64_t) number) % 2);
 }
 
+#ifdef _PTHREAD_H
 static int generate_random_uniform_array(size_t size, double array[size],
                                          double a, double b, size_t threads);
 static int parallel_selector_arrays(size_t size, double src[size],
                                     double dst[size], size_t threads);
 static int parallel_reduce_array(double* acc, size_t size, double array[size],
                                  double min, size_t threads);
+#else
+static int generate_random_uniform_array(size_t size, double array[size],
+                                         double a, double b, unsigned seed);
+#endif
 
 static int args_parse(int argc, char* argv[], int* Np)
 {
@@ -76,14 +81,27 @@ int main(int argc, char* argv[])
     gettimeofday(&T1, NULL); // запомнить текущее время T1
     for (i = 0; i < 100; ++i) { // 100 экспериментов
         // Generate. Заполнить массив исходных данных размером N
+#ifdef _PTHREAD_H
         ret = generate_random_uniform_array(N, M1, 1.0, A, 4);
+#else
+        ret = generate_random_uniform_array(N, M1, 1.0, A, i);
+#endif
         if (ret) goto freeMs;
+#ifdef _PTHREAD_H
         ret = generate_random_uniform_array(M, M2, A, 10.0 * A, 4);
+#else
+        ret = generate_random_uniform_array(M, M2, A, 10.0 * A, i);
+#endif
         if (ret) goto freeMs;
 
         // Map. Решить поставленную задачу, заполнить массив с результатами
+#ifdef _PTHREAD_H
         ret = parallel_map_array(N, M1, map_sqrt_exp, 4);
         if (ret) goto freeMs;
+#else
+        for (size_t j = 0; j < N; ++j)
+            M1[j] = map_sqrt_exp(M1[j]);
+#endif
 
         prev = M2[0];
         // no pragmas because: of read/write dependencies
@@ -93,23 +111,30 @@ int main(int argc, char* argv[])
             M2[j] = curr;
         }
 
-        // #pragma omp parallel for default(none) shared(M1, M2, M)
+#ifdef _PTHREAD_H
         ret = parallel_selector_arrays(M, M1, M2, 4);
         if (ret) goto freeMs;
+#else
+        for (size_t j = 0; j < M; ++j)
+            M2[j] = (M1[j] > M2[j]) ? M1[j] : M2[j];
+#endif
 
         // Sort. Отсортировать массив с результатами указанным методом
         sort(M, M2);
 
         prev = M2[0];
-        // no pragma because: (1) array is already sorted and (2) just looking for first non-zero minimum
         for (size_t j = 1; j < M && prev == 0.0; ++j)
             prev = M2[j];
 
         // Reduce. Сумма синусов элементов M2, у которых при делении на минимальное ненулевое целая часть четная
         X = 0.0;
+#ifdef _PTHREAD_H
         ret = parallel_reduce_array(&X, M, M2, prev, 4);
         if (ret) goto freeMs;
-
+#else
+        for (size_t j = 0; j < M; ++j)
+            X += is_even(M2[j] / prev) ? sin(M2[j]) : 0.0;
+#endif
         printf("X = %lf\n", X);
 	}
     gettimeofday(&T2, NULL);; // запомнить текущее время T2
@@ -131,6 +156,7 @@ static inline double random_double_r(double a, double b, unsigned* seedp)
     return a + ((double)rand_r(seedp)) / (((double) RAND_MAX) / (b - a));
 }
 
+#ifdef _PTHREAD_H
 struct _generate_array_args
 {
     double a;
@@ -284,3 +310,14 @@ static int parallel_reduce_array(double* acc, size_t size, double array[size],
 
     return ret;
 }
+#else
+static int generate_random_uniform_array(size_t size, double array[size],
+                                         double a, double b, unsigned seed)
+{
+    if (!array) return EINVAL;
+
+    for (size_t i = 0; i < size; ++i)
+        array[i] = random_double_r(a, b, &seed);
+    return 0;
+}
+#endif

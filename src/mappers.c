@@ -1,6 +1,5 @@
 #include <stdlib.h>
 #include <math.h>
-#include <pthread.h>
 
 #include "mappers.h"
 
@@ -19,6 +18,7 @@ double map_abs_ctg(double number) {
     return fabs(1.0 / tan(number));
 }
 
+#ifdef _PTHREAD_H
 static void* map_subarray(void* arg)
 {
     struct map_args* args = (struct map_args*) arg;
@@ -26,7 +26,6 @@ static void* map_subarray(void* arg)
         args->array[i] = args->fn(args->array[i]);
     return 0;
 }
-
 
 int parallel_map_array(size_t size, double array[size], mapper fn,
                        size_t threads)
@@ -57,3 +56,4 @@ int parallel_map_array(size_t size, double array[size], mapper fn,
 
     return ret;
 }
+#endif
