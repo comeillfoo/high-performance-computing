@@ -10,8 +10,9 @@
 #include "oclw.h"
 #include "mappers.h"
 #include "sorts.h"
+#include "futils.h"
 
-#define KERNEL_PATH "./kernel.elf"
+#define KERNEL_PATH "./kernel.clbin"
 
 #ifndef __GNUC__
 // here we assume that unsigned is 32bit integer
@@ -27,8 +28,6 @@ static unsigned rand_r(unsigned *seed)
 
 static int args_parse(int argc, char* argv[], int* Np);
 static inline bool is_even(double number);
-static ssize_t fget_size_verbose(FILE* stream);
-static int fclose_verbose(FILE* stream);
 #ifdef _PTHREAD_H
 static int generate_random_uniform_array(size_t size, double array[size],
                                          double a, double b, size_t threads);
@@ -67,7 +66,7 @@ int main(int argc, char* argv[])
     M = N / 2;
 
     kernbin_stream = fopen(KERNEL_PATH, "rb");
-    if (kernbin_stream == NULL) {
+    if (!kernbin_stream) {
         perror("Unable to open kernel at \'"KERNEL_PATH"\'");
         ret = 1;
         goto exit;
@@ -93,9 +92,9 @@ int main(int argc, char* argv[])
     }
     fclose_verbose(kernbin_stream);
 
-    ret = oclw_get_platform(&cl_platform_id);
+    ret = oclw_get_default_platform(&cl_platform_id);
     if (ret) goto exit;
-    ret = oclw_select_device(cl_platform_id, &cl_device_id);
+    ret = oclw_get_default_device(cl_platform_id, &cl_device_id);
     if (ret) goto exit;
     char* cl_device_name = oclw_query_device_name(cl_device_id);
     if (cl_device_name) {
@@ -220,37 +219,6 @@ usage:
 static inline bool is_even(double number)
 {
     return !(((uint_least64_t) number) % 2);
-}
-
-static ssize_t fget_size_verbose(FILE* stream)
-{
-    ssize_t ret = -1;
-    if (fseek(stream, 0L, SEEK_END) == -1) {
-        perror("Unable to seek stream to the end");
-        goto error;
-    }
-    ret = ftell(stream);
-    if (ret == -1) {
-        perror("Unable to get current position of binary");
-        goto error;
-    }
-    if (fseek(stream, 0L, SEEK_SET) == -1) {
-        perror("Unable to rewind stream back to beginning");
-        goto error;
-    }
-    return ret;
-error:
-    fclose_verbose(stream);
-    return -1;
-}
-
-static int fclose_verbose(FILE* stream)
-{
-    if (fclose(stream) == EOF) {
-        perror("Unable to close file");
-        return 1;
-    }
-    return 0;
 }
 
 static inline double random_double_r(double a, double b, unsigned* seedp)

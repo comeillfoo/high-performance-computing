@@ -1,4 +1,5 @@
 .vscode
 build
 app
-kernel.elf
+kernel.*
+oclwc

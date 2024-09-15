@@ -6,16 +6,20 @@
 static const char* oclw_error_msg(cl_int errno)
 {
     switch (errno) {
-    case CL_INVALID_VALUE: return "invalid value";
-    case CL_OUT_OF_HOST_MEMORY: return "failed to allocate resources on host";
+    case CL_BUILD_PROGRAM_FAILURE: return "build program failure";
+    case CL_COMPILER_NOT_AVAILABLE: return "compiler is not available";
     case CL_INVALID_BINARY: return "not a valid binary";
-    case CL_INVALID_PROGRAM: return "not a valid program object";
-    case CL_INVALID_PROGRAM_EXECUTABLE:
-        return "no successfully built executable";
-    case CL_INVALID_KERNEL_NAME: return "kernel name is not found in program";
+    case CL_INVALID_DEVICE: return "device is not associated correctly";
     case CL_INVALID_KERNEL_DEFINITION:
         return "function definition differs from built for device";
+    case CL_INVALID_KERNEL_NAME: return "kernel name is not found in program";
+    case CL_INVALID_OPERATION: return "invalid operation";
+    case CL_INVALID_PROGRAM: return "not a valid program object";
+    case CL_INVALID_PROGRAM_EXECUTABLE:
+        return "not a successfully built executable";
+    case CL_INVALID_VALUE: return "invalid value";
     case CL_OUT_OF_RESOURCES: return "failed to allocate resources on device";
+    case CL_OUT_OF_HOST_MEMORY: return "failed to allocate resources on host";
     case CL_SUCCESS: return "success";
     default: return "undefined error code";
     }
@@ -25,24 +29,24 @@ static const char* oclw_error_msg(cl_int errno)
     fprintf(stderr, "%s: OCL[%"PRId32"]: %s at %s:%s:%d\n", (message), (errno), \
             oclw_error_msg(errno), __FILE__, __func__, __LINE__)
 
-int oclw_get_platform(cl_platform_id* platform_id)
+int oclw_get_default_platform(cl_platform_id* platform_id)
 {
     cl_int cl_ret = 0;
     cl_uint ret_num_platforms;
     cl_ret = clGetPlatformIDs(1, platform_id, &ret_num_platforms);
     if (cl_ret == CL_SUCCESS) return 0;
-    oclw_error(cl_ret, "Unable to get platform ID");
+    oclw_error(cl_ret, "Unable to get default platform ID");
     return 1;
 }
 
-int oclw_select_device(cl_platform_id platform_id, cl_device_id* device_id)
+int oclw_get_default_device(cl_platform_id platform_id, cl_device_id* device_id)
 {
     cl_int cl_ret = 0;
     cl_uint ret_num_devices;
     cl_ret = clGetDeviceIDs(platform_id, CL_DEVICE_TYPE_DEFAULT, 1, device_id,
                             &ret_num_devices);
     if (cl_ret == CL_SUCCESS) return 0;
-    oclw_error(cl_ret, "Unable to get device ID");
+    oclw_error(cl_ret, "Unable to get default device ID");
     return 1;
 }
 
@@ -78,6 +82,18 @@ int oclw_destroy_cmd_queue(cl_command_queue queue)
     cl_int cl_ret = clReleaseCommandQueue(queue);
     if (cl_ret == CL_SUCCESS) return 0;
     oclw_error(cl_ret, "Unable to destroy command queue");
+    return 1;
+}
+
+int oclw_create_program_from_source(cl_context ctx, cl_uint count,
+                                    const char* sources[count],
+                                    const size_t lengths[count],
+                                    cl_program* program)
+{
+    cl_int cl_ret = 0;
+    *program = clCreateProgramWithSource(ctx, count, sources, lengths, &cl_ret);
+    if (cl_ret == CL_SUCCESS) return 0;
+    oclw_error(cl_ret, "Unable to create program from sources");
     return 1;
 }
 
@@ -133,15 +149,31 @@ int oclw_destroy_kernel_object(cl_kernel kernel)
     return 1;
 }
 
+int oclw_build_program(cl_program program, cl_device_id device_id)
+{
+    cl_int cl_ret = 0;
+    cl_ret = clBuildProgram(program, 1, (const cl_device_id[]){ device_id },
+                            "-Werror -cl-std=CL3.0", NULL, NULL);
+    if (cl_ret == CL_SUCCESS) return 0;
+    oclw_error(cl_ret, "Unable to build program");
+    return 1;
+}
+
 char* oclw_query_device_name(cl_device_id device_id)
 {
     char* device_name = NULL;
     size_t length = 0;
     cl_int cl_ret = clGetDeviceInfo(device_id, CL_DEVICE_NAME, 0, NULL, &length);
-    if (!length) return NULL;
+    if (!length) {
+        oclw_error(1, "Fatal error while getting length of device name");
+        return NULL;
+    }
 
     device_name = malloc(sizeof(char) * length);
-    if (!device_name) return NULL;
+    if (!device_name) {
+        oclw_error(1, "Fatal error while allocating memory for device name");
+        return NULL;
+    }
     cl_ret = clGetDeviceInfo(device_id, CL_DEVICE_NAME, length, device_name, NULL);
     if (cl_ret == CL_SUCCESS) return device_name;
     free(device_name);
@@ -149,18 +181,58 @@ char* oclw_query_device_name(cl_device_id device_id)
     return NULL;
 }
 
-// int oclw_query_build_log(cl_program program, cl_device_id device_id)
-// {
-//     cl_program_build_info param_name = CL_PROGRAM_BUILD_LOG;
-//     size_t param_value_size;
-//     unsigned char param_value[42];
-//     size_t param_value_size_ret = 0;
-//     cl_int cl_ret = clGetProgramBuildInfo(program, device_id, param_name,
-//                                           param_value_size, param_value,
-//                                           &param_value_size_ret);
-//     if (cl_ret != CL_SUCCESS) {
-//         oclw_error(cl_ret, "Unable to query build log");
-//         return 1;
-//     }
-//     return 0;
-// }
+char* oclw_query_build_log(cl_program program, cl_device_id device_id)
+{
+    char* log = NULL;
+    size_t length = 0;
+    cl_int cl_ret = 0;
+    cl_ret = clGetProgramBuildInfo(program, device_id, CL_PROGRAM_BUILD_LOG, 0,
+                                   NULL, &length);
+    if (!length) {
+        oclw_error(1, "Fatal error while getting length of program build log");
+        return NULL;
+    }
+
+    log = malloc(sizeof(char) * length);
+    if (!log) {
+        oclw_error(1, "Fatal error while allocating memory for build log");
+        return NULL;
+    }
+    cl_ret = clGetProgramBuildInfo(program, device_id, CL_PROGRAM_BUILD_LOG,
+                                   length, log, NULL);
+    if (cl_ret == CL_SUCCESS) return log;
+    free(log);
+    oclw_error(cl_ret, "Unable to query build log");
+    return NULL;
+}
+
+ssize_t oclw_query_single_binary_size(cl_program program)
+{
+    ssize_t binary_size = -1;
+    cl_int cl_ret = 0;
+    cl_ret = clGetProgramInfo(program, CL_PROGRAM_BINARY_SIZES, 1, &binary_size,
+                              NULL);
+    if (cl_ret == CL_SUCCESS) return binary_size;
+    oclw_error(cl_ret, "Unable to query binary size for single device");
+    return -1;
+}
+
+unsigned char* oclw_query_single_binary(cl_program program)
+{
+    cl_int cl_ret = 0;
+    ssize_t binary_size = -1;
+    unsigned char* binary = NULL;
+    binary_size = oclw_query_single_binary_size(program);
+    if (binary_size == -1) return NULL;
+    binary = calloc(binary_size, 1);
+    if (!binary) {
+        oclw_error(1, "Fatal error while allocating memory for binary content");
+        return NULL;
+    }
+    cl_ret = clGetProgramInfo(program, CL_PROGRAM_BINARIES, 1, &binary,
+                              NULL);
+    if (cl_ret == CL_SUCCESS) return binary;
+    oclw_error(cl_ret, "Unable to get program binaries");
+    free(binary);
+    return NULL;
+}
