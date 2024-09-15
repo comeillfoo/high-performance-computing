@@ -30,10 +30,10 @@ $(BUILDDIR)/%.o: $(SRCDIR)/%.c $(BUILDDIR)
 	$(CC) -c $(CFLAGS) $< -o $@
 
 $(KERNELSDIR)/%.obj: $(SRCDIR)/kernels/%.cl $(KERNELSDIR)
-	$(OCLOC) --cmd=compile --device=cpu -bo='-cl-std=CL3.0' -o $@ $<
+	$(OCLOC) --cmd=compile --march=sse4.2 --device=cpu -bo='-cl-std=CL3.0' -o $@ $<
 
 $(KERNEL): $(addsuffix .obj, $(addprefix $(KERNELSDIR)/, main))
-	$(OCLOC) --cmd=link --device=cpu -o $@ $^
+	$(OCLOC) --cmd=link --march=sse4.2 --device=cpu -o $@ $^
 
 
 clean:

@@ -60,6 +60,7 @@ int main(int argc, char* argv[])
     cl_context cl_context = NULL;
     cl_command_queue cl_queue = NULL;
     cl_program cl_program = NULL;
+    cl_kernel filter_fold_kern = NULL;
 
     ret = args_parse(argc, argv, &N); // N равен первому параметру командной строки
     if (ret) goto exit;
@@ -96,6 +97,11 @@ int main(int argc, char* argv[])
     if (ret) goto exit;
     ret = oclw_select_device(cl_platform_id, &cl_device_id);
     if (ret) goto exit;
+    char* cl_device_name = oclw_query_device_name(cl_device_id);
+    if (cl_device_name) {
+        printf("Selected device with the name %s\n", cl_device_name);
+        free(cl_device_name);
+    }
     ret = oclw_create_context(&cl_device_id, &cl_context);
     if (ret) goto exit;
     ret = oclw_create_cmd_queue(cl_context, cl_device_id, &cl_queue);
@@ -104,6 +110,8 @@ int main(int argc, char* argv[])
                                           sizeof(unsigned char) * kernbin_length,
                                           kernbin_buf);
     if (ret) goto cl_free_cmd_queue;
+    ret = oclw_create_kernobj_for_function("hello", cl_program, &filter_fold_kern);
+    if (ret) goto cl_free_program;
     free(kernbin_buf);
 
     double* M1 = malloc(N * sizeof(double));
@@ -177,6 +185,8 @@ int main(int argc, char* argv[])
 freeMs:
     free(M2);
     free(M1);
+    ret |= oclw_destroy_kernel_object(filter_fold_kern);
+cl_free_program:
     ret |= oclw_destroy_program_object(cl_program);
 cl_free_cmd_queue:
     ret |= oclw_destroy_cmd_queue(cl_queue);
