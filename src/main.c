@@ -96,11 +96,6 @@ int main(int argc, char* argv[])
     if (ret) goto exit;
     ret = oclw_get_default_device(cl_platform_id, &cl_device_id);
     if (ret) goto exit;
-    char* cl_device_name = oclw_query_device_name(cl_device_id);
-    if (cl_device_name) {
-        printf("Selected device with the name %s\n", cl_device_name);
-        free(cl_device_name);
-    }
     ret = oclw_create_context(&cl_device_id, &cl_context);
     if (ret) goto exit;
     ret = oclw_create_cmd_queue(cl_context, cl_device_id, &cl_queue);
@@ -109,7 +104,10 @@ int main(int argc, char* argv[])
                                           sizeof(unsigned char) * kernbin_length,
                                           kernbin_buf);
     if (ret) goto cl_free_cmd_queue;
-    ret = oclw_create_kernobj_for_function("hello", cl_program, &filter_fold_kern);
+    ret = oclw_build_program(cl_program, cl_device_id, NULL);
+    if (ret) goto cl_free_program;
+    ret = oclw_create_kernobj_for_function("filter_fold", cl_program,
+                                           &filter_fold_kern);
     if (ret) goto cl_free_program;
     free(kernbin_buf);
 

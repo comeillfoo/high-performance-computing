@@ -26,8 +26,8 @@ static const char* oclw_error_msg(cl_int errno)
 }
 
 #define oclw_error(errno, message) \
-    fprintf(stderr, "%s: OCL[%"PRId32"]: %s at %s:%s:%d\n", (message), (errno), \
-            oclw_error_msg(errno), __FILE__, __func__, __LINE__)
+    fprintf(stderr, "OCLW:ERROR[%"PRId32"]: %s: %s at %s:%s:%d\n", (errno), \
+            (message), oclw_error_msg(errno), __FILE__, __func__, __LINE__)
 
 int oclw_get_default_platform(cl_platform_id* platform_id)
 {
@@ -126,9 +126,8 @@ int oclw_destroy_program_object(cl_program program)
 }
 
 #define oclw_error_function(errno, function) \
-    fprintf(stderr, \
-            "Unable to create kernel for function \'%s\': OCL[%"PRId32"]: %s at" \
-            " %s:%s:%d\n", (function), (errno), \
+    fprintf(stderr, "OCLW:ERROR[%"PRId32"]: unable to create kernel for " \
+            "function \'%s\': %s at %s:%s:%d\n", (errno), (function), \
             oclw_error_msg(errno), __FILE__, __func__, __LINE__)
 
 int oclw_create_kernobj_for_function(const char* function, cl_program program,
@@ -149,11 +148,12 @@ int oclw_destroy_kernel_object(cl_kernel kernel)
     return 1;
 }
 
-int oclw_build_program(cl_program program, cl_device_id device_id)
+int oclw_build_program(cl_program program, cl_device_id device_id,
+                       const char* options)
 {
     cl_int cl_ret = 0;
     cl_ret = clBuildProgram(program, 1, (const cl_device_id[]){ device_id },
-                            "-Werror -cl-std=CL3.0", NULL, NULL);
+                            options, NULL, NULL);
     if (cl_ret == CL_SUCCESS) return 0;
     oclw_error(cl_ret, "Unable to build program");
     return 1;
@@ -210,27 +210,24 @@ ssize_t oclw_query_single_binary_size(cl_program program)
 {
     ssize_t binary_size = -1;
     cl_int cl_ret = 0;
-    cl_ret = clGetProgramInfo(program, CL_PROGRAM_BINARY_SIZES, 1, &binary_size,
+    cl_ret = clGetProgramInfo(program, CL_PROGRAM_BINARY_SIZES, sizeof(size_t), &binary_size,
                               NULL);
     if (cl_ret == CL_SUCCESS) return binary_size;
     oclw_error(cl_ret, "Unable to query binary size for single device");
     return -1;
 }
 
-unsigned char* oclw_query_single_binary(cl_program program)
+unsigned char* oclw_query_single_binary(cl_program program, size_t binary_size)
 {
     cl_int cl_ret = 0;
-    ssize_t binary_size = -1;
     unsigned char* binary = NULL;
-    binary_size = oclw_query_single_binary_size(program);
-    if (binary_size == -1) return NULL;
-    binary = calloc(binary_size, 1);
+    binary = calloc(binary_size, sizeof(unsigned char));
     if (!binary) {
         oclw_error(1, "Fatal error while allocating memory for binary content");
         return NULL;
     }
-    cl_ret = clGetProgramInfo(program, CL_PROGRAM_BINARIES, 1, &binary,
-                              NULL);
+    cl_ret = clGetProgramInfo(program, CL_PROGRAM_BINARIES, sizeof(unsigned char*),
+                              &binary, NULL);
     if (cl_ret == CL_SUCCESS) return binary;
     oclw_error(cl_ret, "Unable to get program binaries");
     free(binary);

@@ -18,12 +18,14 @@ int oclw_create_program_from_binary(cl_context ctx, cl_device_id device_id,
                                     cl_program* program, size_t length,
                                     unsigned char* binary);
 int oclw_destroy_program_object(cl_program program);
-int oclw_build_program(cl_program program, cl_device_id device_id);
+int oclw_build_program(cl_program program, cl_device_id device_id,
+                       const char* options);
 int oclw_create_kernobj_for_function(const char* function, cl_program program,
                                      cl_kernel* kernel);
 int oclw_destroy_kernel_object(cl_kernel kernel);
 char* oclw_query_device_name(cl_device_id device_id);
 char* oclw_query_build_log(cl_program program, cl_device_id device_id);
 ssize_t oclw_query_single_binary_size(cl_program program);
+unsigned char* oclw_query_single_binary(cl_program program, size_t binary_size);
 
 #endif // _OCLW_H_
