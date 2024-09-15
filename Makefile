@@ -1,6 +1,6 @@
 CC=gcc
 LD=gcc
-OCLC?=/opt/intel/oneapi/compiler/latest/bin/opencl-aot
+OCLOC?=/opt/intel/oneapi/compiler/latest/bin/opencl-aot
 
 INCDIR=include
 SRCDIR=src
@@ -8,21 +8,19 @@ BUILDDIR=build
 TARGETS=main mappers sorts oclw
 TARGET=app
 
-KERNELSDIR=kernels
-KERNELS=main
+KERNELSDIR=$(BUILDDIR)/kernels
+KERNEL=kernel.elf
 
 CFLAGS=-O3 -Wall -Werror -pedantic -D CL_TARGET_OPENCL_VERSION=300 -I$(INCDIR)
 LIBS=-lm -lOpenCL
 
-join-with = $(subst $(space),$1,$(strip $2))
 
-all: $(addsuffix .o,$(addprefix $(BUILDDIR)/,$(TARGETS)))
+all: $(TARGET) $(KERNEL)
+
+$(TARGET): $(addsuffix .o,$(addprefix $(BUILDDIR)/,$(TARGETS)))
 	$(LD) $(LDFLAGS) $^ -o $(TARGET) $(LIBS)
 
 $(BUILDDIR):
-	mkdir -p $@
-
-$(BUILDDIR)/$(KERNELSDIR):
 	mkdir -p $@
 
 $(KERNELSDIR):
@@ -31,17 +29,17 @@ $(KERNELSDIR):
 $(BUILDDIR)/%.o: $(SRCDIR)/%.c $(BUILDDIR)
 	$(CC) -c $(CFLAGS) $< -o $@
 
+$(KERNELSDIR)/%.obj: $(SRCDIR)/kernels/%.cl $(KERNELSDIR)
+	$(OCLOC) --cmd=compile --device=cpu -bo='-cl-std=CL3.0' -o $@ $<
 
-$(BUILDDIR)/$(KERNELSDIR)/%.obj: $(SRCDIR)/$(KERNELSDIR)/%.cl $(BUILDDIR)/$(KERNELSDIR)
-	$(OCLC) -cmd=compile -device=cpu -bo='-cl-std=CL3.0' --input=$< --ir=$@
-
-$(KERNELSDIR)/main.elf: $(addsuffix .obj, $(addprefix $(BUILDDIR)/$(KERNELSDIR)/, main))
-	$(OCLC) -cmd=link -device=cpu -binary=$(call join-with,,,$@)
+$(KERNEL): $(addsuffix .obj, $(addprefix $(KERNELSDIR)/, main))
+	$(OCLOC) --cmd=link --device=cpu -o $@ $^
 
 
 clean:
 	rm -rf $(KERNELSDIR)
 	rm -rf $(BUILDDIR)
 	rm -f $(TARGET)
+	rm -f $(KERNEL)
 
 .PHONY: clean
