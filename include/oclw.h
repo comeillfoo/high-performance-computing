@@ -10,5 +10,9 @@ int oclw_destroy_context(cl_context ctx);
 int oclw_create_cmd_queue(cl_context ctx, cl_device_id device_id,
                           cl_command_queue* queue);
 int oclw_destroy_cmd_queue(cl_command_queue queue);
+int oclw_create_program_from_binary(cl_context ctx, cl_device_id device_id,
+                                    cl_program* program, size_t length,
+                                    unsigned char* binary);
+int oclw_destroy_program_object(cl_program program);
 
 #endif // _OCLW_H_

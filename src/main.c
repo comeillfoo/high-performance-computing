@@ -11,8 +11,9 @@
 #include "mappers.h"
 #include "sorts.h"
 
-#ifndef __GNUC__
+#define KERNEL_PATH "./kernel.elf"
 
+#ifndef __GNUC__
 // here we assume that unsigned is 32bit integer
 static unsigned rand_r(unsigned *seed)
 {
@@ -22,14 +23,12 @@ static unsigned rand_r(unsigned *seed)
 	(*seed) ^= (*seed) >> 18;
 	return (*seed);
 }
-
 #endif
 
-static inline bool is_even(double number)
-{
-    return !(((uint_least64_t) number) % 2);
-}
-
+static int args_parse(int argc, char* argv[], int* Np);
+static inline bool is_even(double number);
+static ssize_t fget_size_verbose(FILE* stream);
+static int fclose_verbose(FILE* stream);
 #ifdef _PTHREAD_H
 static int generate_random_uniform_array(size_t size, double array[size],
                                          double a, double b, size_t threads);
@@ -42,25 +41,6 @@ static int generate_random_uniform_array(size_t size, double array[size],
                                          double a, double b, unsigned seed);
 #endif
 
-static int args_parse(int argc, char* argv[], int* Np)
-{
-    int N = 0, ret = 0;
-    if (argc < 2 || !Np) {
-        ret = EINVAL;
-        goto usage;
-    }
-    N = strtol(argv[1], NULL, 10);
-    ret = errno || (N <= 1);
-    if (ret)
-        goto usage;
-
-    *Np = N;
-    return 0;
-usage:
-    printf("Usage: %s N\n\nArguments:\n    N    size of matrices, default 2\n",
-           argv[0]);
-    return ret;
-}
 
 int main(int argc, char* argv[])
 {
@@ -71,14 +51,46 @@ int main(int argc, char* argv[])
     struct timeval T1, T2;
     long delta_ms;
 
+    FILE* kernbin_stream;
+    ssize_t kernbin_length;
+    unsigned char* kernbin_buf = NULL;
+
     cl_platform_id cl_platform_id = NULL;
     cl_device_id cl_device_id = NULL;
     cl_context cl_context = NULL;
     cl_command_queue cl_queue = NULL;
+    cl_program cl_program = NULL;
 
     ret = args_parse(argc, argv, &N); // N равен первому параметру командной строки
     if (ret) goto exit;
     M = N / 2;
+
+    kernbin_stream = fopen(KERNEL_PATH, "rb");
+    if (kernbin_stream == NULL) {
+        perror("Unable to open kernel at \'"KERNEL_PATH"\'");
+        ret = 1;
+        goto exit;
+    }
+
+    kernbin_length = fget_size_verbose(kernbin_stream);
+    if (kernbin_length == -1) goto exit;
+
+    kernbin_buf = malloc(sizeof(unsigned char) * kernbin_length);
+    if (kernbin_buf == NULL) {
+        fprintf(stderr, "Unable to allocate %zu bytes for buffer\n",
+                kernbin_length);
+        ret = fclose_verbose(kernbin_stream) | 1;
+        goto exit;
+    }
+
+    if (fread(kernbin_buf, sizeof(unsigned char), kernbin_length,
+              kernbin_stream) < kernbin_length) {
+        fprintf(stderr, "Unable to read kernel binary\n");
+        free(kernbin_buf);
+        ret = fclose_verbose(kernbin_stream) | 1;
+        goto exit;
+    }
+    fclose_verbose(kernbin_stream);
 
     ret = oclw_get_platform(&cl_platform_id);
     if (ret) goto exit;
@@ -88,6 +100,11 @@ int main(int argc, char* argv[])
     if (ret) goto exit;
     ret = oclw_create_cmd_queue(cl_context, cl_device_id, &cl_queue);
     if (ret) goto cl_free_context;
+    ret = oclw_create_program_from_binary(cl_context, cl_device_id, &cl_program,
+                                          sizeof(unsigned char) * kernbin_length,
+                                          kernbin_buf);
+    if (ret) goto cl_free_cmd_queue;
+    free(kernbin_buf);
 
     double* M1 = malloc(N * sizeof(double));
     double* M2 = malloc(M * sizeof(double));
@@ -160,6 +177,8 @@ int main(int argc, char* argv[])
 freeMs:
     free(M2);
     free(M1);
+    ret |= oclw_destroy_program_object(cl_program);
+cl_free_cmd_queue:
     ret |= oclw_destroy_cmd_queue(cl_queue);
 cl_free_context:
     ret |= oclw_destroy_context(cl_context);
@@ -167,6 +186,62 @@ exit:
     return ret;
 }
 
+
+static int args_parse(int argc, char* argv[], int* Np)
+{
+    int N = 0, ret = 0;
+    if (argc < 2 || !Np) {
+        ret = EINVAL;
+        goto usage;
+    }
+    N = strtol(argv[1], NULL, 10);
+    ret = errno || (N <= 1);
+    if (ret)
+        goto usage;
+
+    *Np = N;
+    return 0;
+usage:
+    printf("Usage: %s N\n\nArguments:\n    N    size of matrices, default 2\n",
+           argv[0]);
+    return ret;
+}
+
+static inline bool is_even(double number)
+{
+    return !(((uint_least64_t) number) % 2);
+}
+
+static ssize_t fget_size_verbose(FILE* stream)
+{
+    ssize_t ret = -1;
+    if (fseek(stream, 0L, SEEK_END) == -1) {
+        perror("Unable to seek stream to the end");
+        goto error;
+    }
+    ret = ftell(stream);
+    if (ret == -1) {
+        perror("Unable to get current position of binary");
+        goto error;
+    }
+    if (fseek(stream, 0L, SEEK_SET) == -1) {
+        perror("Unable to rewind stream back to beginning");
+        goto error;
+    }
+    return ret;
+error:
+    fclose_verbose(stream);
+    return -1;
+}
+
+static int fclose_verbose(FILE* stream)
+{
+    if (fclose(stream) == EOF) {
+        perror("Unable to close file");
+        return 1;
+    }
+    return 0;
+}
 
 static inline double random_double_r(double a, double b, unsigned* seedp)
 {
