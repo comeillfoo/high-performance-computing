@@ -13,7 +13,16 @@ Tools:
 Intel CPUs specific:
 
 - [add intel repos](http://web.archive.org/web/20240901232236/https://www.intel.com/content/www/us/en/developer/tools/oneapi/base-toolkit-download.html)
-- `sudo apt install -y intel-oneapi-runtime-opencl intel-oneapi-runtime-libs`
+- install packages:
+
+```
+sudo apt install -y \
+    intel-opencl-icd intel-oneapi-runtime-compilers-2024 \
+    intel-oneapi-runtime-opencl-2024 intel-oneapi-compiler-dpcpp-cpp-2024.2 \
+    intel-oneapi-compiler-dpcpp-cpp-runtime-2024.2
+# compiler is at `/opt/intel/oneapi/compiler/latest/bin/ioc64`
+```
+
 - `sudo clinfo` should show that it support at least 1 platform, e.g. `Intel(R) OpenCL` and at least 1 device, e.g. `Intel(R) Core(TM) i5-1035G1 CPU @ 1.00GHz`
 
 Sources:
