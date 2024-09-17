@@ -8,11 +8,15 @@ static const char* oclw_error_msg(cl_int errno)
     switch (errno) {
     case CL_BUILD_PROGRAM_FAILURE: return "build program failure";
     case CL_COMPILER_NOT_AVAILABLE: return "compiler is not available";
+    case CL_INVALID_ARG_INDEX: return "not a valid argument index";
+    case CL_INVALID_ARG_VALUE: return "not a valid value";
     case CL_INVALID_BINARY: return "not a valid binary";
     case CL_INVALID_DEVICE: return "device is not associated correctly";
+    case CL_INVALID_DEVICE_QUEUE: return "not a valid device queue object";
     case CL_INVALID_KERNEL_DEFINITION:
         return "function definition differs from built for device";
     case CL_INVALID_KERNEL_NAME: return "kernel name is not found in program";
+    case CL_INVALID_MEM_OBJECT: return "not a valid memory object";
     case CL_INVALID_OPERATION: return "invalid operation";
     case CL_INVALID_PROGRAM: return "not a valid program object";
     case CL_INVALID_PROGRAM_EXECUTABLE:
@@ -103,10 +107,8 @@ int oclw_create_program_from_binary(cl_context ctx, cl_device_id device_id,
 {
     cl_int cl_ret = 0;
     cl_int binary_status[1];
-    *program = clCreateProgramWithBinary(ctx, 1,
-                                         (const cl_device_id[]) { device_id },
-                                         (const size_t[]) { length },
-                                         (const unsigned char*[]) { binary },
+    *program = clCreateProgramWithBinary(ctx, 1, &device_id, &length,
+                                         (const unsigned char**) &binary,
                                          binary_status, &cl_ret);
 
     if (cl_ret == CL_SUCCESS && binary_status[0] == CL_SUCCESS) return 0;
@@ -151,9 +153,7 @@ int oclw_destroy_kernel_object(cl_kernel kernel)
 int oclw_build_program(cl_program program, cl_device_id device_id,
                        const char* options)
 {
-    cl_int cl_ret = 0;
-    cl_ret = clBuildProgram(program, 1, (const cl_device_id[]){ device_id },
-                            options, NULL, NULL);
+    cl_int cl_ret = clBuildProgram(program, 1, &device_id, options, NULL, NULL);
     if (cl_ret == CL_SUCCESS) return 0;
     oclw_error(cl_ret, "Unable to build program");
     return 1;
@@ -232,4 +232,100 @@ unsigned char* oclw_query_single_binary(cl_program program, size_t binary_size)
     oclw_error(cl_ret, "Unable to get program binaries");
     free(binary);
     return NULL;
+}
+
+int oclw_query_event_status(cl_event event, cl_int* event_status)
+{
+    cl_int cl_ret = clGetEventInfo(event, CL_EVENT_COMMAND_EXECUTION_STATUS,
+                                   sizeof(cl_int), event_status, NULL);
+    if (cl_ret == CL_SUCCESS) return 0;
+    oclw_error(cl_ret, "Unable to get event status");
+    return 1;
+}
+
+int oclw_create_memobj(cl_context ctx, cl_mem_flags flags, cl_mem* mem,
+                       size_t size, void* host_ptr)
+{
+    cl_int cl_ret = 0;
+    *mem = clCreateBuffer(ctx, flags, size, host_ptr, &cl_ret);
+    if (cl_ret == CL_SUCCESS) return 0;
+    oclw_error(cl_ret, "Unable to create memory object");
+    return 1;
+}
+
+int oclw_destroy_memobj(cl_mem mem)
+{
+    cl_int cl_ret = clReleaseMemObject(mem);
+    if (cl_ret == CL_SUCCESS) return 0;
+    oclw_error(cl_ret, "Unable to destroy memory object");
+    return 0;
+}
+
+int oclw_sync_write_memobj(cl_command_queue queue, cl_mem mem, size_t size,
+                           void* ptr)
+{
+    cl_int cl_ret = clEnqueueWriteBuffer(queue, mem, CL_TRUE, 0, size, ptr, 0,
+                                         NULL, NULL);
+    if (cl_ret == CL_SUCCESS) return 0;
+    oclw_error(cl_ret, "Unable to write buffer to memory");
+    return 1;
+}
+
+int oclw_sync_read_memobj(cl_command_queue queue, cl_mem mem, size_t size,
+                          void* ptr)
+{
+    cl_int cl_ret = clEnqueueReadBuffer(queue, mem, CL_TRUE, 0, size, ptr, 0,
+                                        NULL, NULL);
+    if (cl_ret == CL_SUCCESS) return 0;
+    oclw_error(cl_ret, "Unable to read buffer from memory");
+    return 1;
+}
+
+int oclw_sync_run_task(cl_command_queue queue, cl_kernel kernel)
+{
+    size_t global_size = 1024;
+    size_t local_size = 4;
+    cl_event event;
+    cl_int event_status;
+    cl_int cl_ret = clEnqueueNDRangeKernel(queue, kernel, 1, NULL, &global_size,
+                                           &local_size, 0, NULL, &event);
+    if (cl_ret != CL_SUCCESS) {
+        oclw_error(cl_ret, "Unable to run task");
+        return 1;
+    }
+    do {
+        cl_ret = oclw_query_event_status(event, &event_status);
+        if (cl_ret != CL_SUCCESS) return 1;
+    } while (event_status != CL_COMPLETE);
+    return 0;
+}
+
+#define oclw_setarg_error(errno, arg) \
+    fprintf(stderr, "OCLW:ERROR[%"PRId32"]: Unable to set arg \'%s\': %s at " \
+            "%s:%s:%d\n", (errno), (arg), oclw_error_msg(errno), __FILE__, \
+            __func__, __LINE__)
+
+int oclw_set_kernel_arg(cl_kernel kernel, cl_uint index, size_t arg_size,
+                        void* arg_value, const char* arg_name)
+{
+    cl_int cl_ret = clSetKernelArg(kernel, index, arg_size, arg_value);
+    if (cl_ret != CL_SUCCESS) {
+        oclw_setarg_error(cl_ret, arg_name);
+        return 1;
+    }
+    return 0;
+}
+
+int oclw_set_filter_fold_args(cl_kernel kernel, double min, unsigned long M,
+                              cl_mem* M2, cl_mem* X)
+{
+    int ret = oclw_set_kernel_arg(kernel, 0, sizeof(min), &min, "min");
+    if (ret) goto exit;
+    ret = oclw_set_kernel_arg(kernel, 1, sizeof(M), &M, "M");
+    if (ret) goto exit;
+    ret = oclw_set_kernel_arg(kernel, 2, sizeof(cl_mem), M2, "M2");
+    if (ret) goto exit;
+    ret = oclw_set_kernel_arg(kernel, 3, sizeof(cl_mem), X, "X");
+exit:
+    return ret;
 }

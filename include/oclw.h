@@ -27,5 +27,18 @@ char* oclw_query_device_name(cl_device_id device_id);
 char* oclw_query_build_log(cl_program program, cl_device_id device_id);
 ssize_t oclw_query_single_binary_size(cl_program program);
 unsigned char* oclw_query_single_binary(cl_program program, size_t binary_size);
+int oclw_query_event_status(cl_event event, cl_int* event_status);
+int oclw_create_memobj(cl_context ctx, cl_mem_flags flags, cl_mem* mem,
+                       size_t size, void* host_ptr);
+int oclw_destroy_memobj(cl_mem mem);
+int oclw_sync_write_memobj(cl_command_queue queue, cl_mem mem, size_t size,
+                           void* ptr);
+int oclw_sync_read_memobj(cl_command_queue queue, cl_mem mem, size_t size,
+                          void* ptr);
+int oclw_sync_run_task(cl_command_queue queue, cl_kernel kernel);
+int oclw_set_kernel_arg(cl_kernel kernel, cl_uint index, size_t arg_size,
+                        void* arg_value, const char* arg_name);
+int oclw_set_filter_fold_args(cl_kernel kernel, double min, unsigned long M,
+                              cl_mem* M2, cl_mem* X);
 
 #endif // _OCLW_H_
