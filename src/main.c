@@ -105,7 +105,7 @@ int main(int argc, char* argv[])
     if (ret) goto cl_free_program;
     ret = oclw_create_memobj(cl_context, CL_MEM_WRITE_ONLY, &X_memobj,
                              sizeof(double), NULL);
-    if (ret) goto cl_free_kern_obj;
+    if (ret) goto cl_free_filter_fold_kern;
     ret = oclw_create_memobj(cl_context, CL_MEM_READ_ONLY, &M2_memobj,
                              M * sizeof(double), NULL);
     if (ret) goto cl_free_X_memobj;
@@ -168,7 +168,7 @@ freeMs:
     ret |= oclw_destroy_memobj(M2_memobj);
 cl_free_X_memobj:
     ret |= oclw_destroy_memobj(X_memobj);
-cl_free_kern_obj:
+cl_free_filter_fold_kern:
     ret |= oclw_destroy_kernel_object(filter_fold_kern);
 cl_free_program:
     ret |= oclw_destroy_program_object(cl_program);
