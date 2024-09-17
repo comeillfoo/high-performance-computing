@@ -145,7 +145,6 @@ int main(int argc, char* argv[])
             prev = M2[j];
 
         // Reduce. Сумма синусов элементов M2, у которых при делении на минимальное ненулевое целая часть четная
-        X = 0.0;
         ret = oclw_sync_write_memobj(cl_queue, M2_memobj, sizeof(double) * M, M2);
         if (ret) goto freeMs;
         ret = oclw_set_filter_fold_args(filter_fold_kern, prev, M, &M2_memobj,

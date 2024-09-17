@@ -38,7 +38,7 @@ int oclw_sync_read_memobj(cl_command_queue queue, cl_mem mem, size_t size,
 int oclw_sync_run_task(cl_command_queue queue, cl_kernel kernel);
 int oclw_set_kernel_arg(cl_kernel kernel, cl_uint index, size_t arg_size,
                         void* arg_value, const char* arg_name);
-int oclw_set_filter_fold_args(cl_kernel kernel, double min, unsigned long M,
-                              cl_mem* M2, cl_mem* X);
+int oclw_set_filter_fold_args(cl_kernel kernel, double min, size_t M, cl_mem* M2,
+                              cl_mem* X);
 
 #endif // _OCLW_H_

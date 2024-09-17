@@ -261,12 +261,24 @@ int oclw_destroy_memobj(cl_mem mem)
     return 0;
 }
 
+int oclw_wait_till_completion(cl_event event)
+{
+    cl_int cl_ret = 0;
+    cl_int event_status;
+    do {
+        cl_ret = oclw_query_event_status(event, &event_status);
+        if (cl_ret != CL_SUCCESS) return 1;
+    } while (event_status != CL_COMPLETE);
+    return 0;
+}
+
 int oclw_sync_write_memobj(cl_command_queue queue, cl_mem mem, size_t size,
                            void* ptr)
 {
+    cl_event event;
     cl_int cl_ret = clEnqueueWriteBuffer(queue, mem, CL_TRUE, 0, size, ptr, 0,
-                                         NULL, NULL);
-    if (cl_ret == CL_SUCCESS) return 0;
+                                         NULL, &event);
+    if (cl_ret == CL_SUCCESS) return oclw_wait_till_completion(event);
     oclw_error(cl_ret, "Unable to write buffer to memory");
     return 1;
 }
@@ -274,9 +286,10 @@ int oclw_sync_write_memobj(cl_command_queue queue, cl_mem mem, size_t size,
 int oclw_sync_read_memobj(cl_command_queue queue, cl_mem mem, size_t size,
                           void* ptr)
 {
+    cl_event event;
     cl_int cl_ret = clEnqueueReadBuffer(queue, mem, CL_TRUE, 0, size, ptr, 0,
-                                        NULL, NULL);
-    if (cl_ret == CL_SUCCESS) return 0;
+                                        NULL, &event);
+    if (cl_ret == CL_SUCCESS) return oclw_wait_till_completion(event);
     oclw_error(cl_ret, "Unable to read buffer from memory");
     return 1;
 }
@@ -286,18 +299,13 @@ int oclw_sync_run_task(cl_command_queue queue, cl_kernel kernel)
     size_t global_size = 1024;
     size_t local_size = 4;
     cl_event event;
-    cl_int event_status;
     cl_int cl_ret = clEnqueueNDRangeKernel(queue, kernel, 1, NULL, &global_size,
                                            &local_size, 0, NULL, &event);
     if (cl_ret != CL_SUCCESS) {
         oclw_error(cl_ret, "Unable to run task");
         return 1;
     }
-    do {
-        cl_ret = oclw_query_event_status(event, &event_status);
-        if (cl_ret != CL_SUCCESS) return 1;
-    } while (event_status != CL_COMPLETE);
-    return 0;
+    return oclw_wait_till_completion(event);
 }
 
 #define oclw_setarg_error(errno, arg) \
@@ -316,10 +324,10 @@ int oclw_set_kernel_arg(cl_kernel kernel, cl_uint index, size_t arg_size,
     return 0;
 }
 
-int oclw_set_filter_fold_args(cl_kernel kernel, double min, unsigned long M,
-                              cl_mem* M2, cl_mem* X)
+int oclw_set_filter_fold_args(cl_kernel kernel, double min, size_t M, cl_mem* M2,
+                              cl_mem* X)
 {
-    int ret = oclw_set_kernel_arg(kernel, 0, sizeof(min), &min, "min");
+    int ret = oclw_set_kernel_arg(kernel, 0, sizeof(cl_double), &min, "min");
     if (ret) goto exit;
     ret = oclw_set_kernel_arg(kernel, 1, sizeof(M), &M, "M");
     if (ret) goto exit;
