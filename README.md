@@ -18,8 +18,11 @@ Intel CPUs specific:
 ```
 sudo apt install -y \
     intel-opencl-icd intel-oneapi-runtime-compilers-2024 \
-    intel-oneapi-runtime-opencl-2024 intel-oneapi-compiler-dpcpp-cpp-2024.2
-# compiler is at `/opt/intel/oneapi/compiler/latest/bin/opencl-aot`
+    intel-oneapi-runtime-opencl-2024
+# now project use own offline compiler (oclwc) but in the
+# intel-oneapi-compiler-dpcpp-cpp-2024.2 package
+# can be found Intel's compiler which is installed at
+# `/opt/intel/oneapi/compiler/latest/bin/opencl-aot`
 ```
 
 - `sudo clinfo` should show that it support at least 1 platform, e.g. `Intel(R) OpenCL` and at least 1 device, e.g. `Intel(R) Core(TM) i5-1035G1 CPU @ 1.00GHz`

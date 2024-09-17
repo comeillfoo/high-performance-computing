@@ -337,3 +337,10 @@ int oclw_set_filter_fold_args(cl_kernel kernel, double min, size_t M, cl_mem* M2
 exit:
     return ret;
 }
+
+int oclw_set_map_sqrt_exp_args(cl_kernel kernel, size_t N, cl_mem* M1)
+{
+    int ret = oclw_set_kernel_arg(kernel, 0, sizeof(N), &N, "N");
+    if (ret) return ret;
+    return oclw_set_kernel_arg(kernel, 1, sizeof(cl_mem), M1, "M1");
+}

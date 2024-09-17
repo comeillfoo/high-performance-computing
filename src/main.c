@@ -51,6 +51,9 @@ int main(int argc, char* argv[])
     cl_command_queue cl_queue = NULL;
     cl_program cl_program = NULL;
 
+    cl_kernel map_sqrt_exp_kern = NULL;
+    cl_mem M1_memobj = NULL;
+
     cl_kernel filter_fold_kern = NULL;
     cl_mem X_memobj = NULL;
     cl_mem M2_memobj = NULL;
@@ -100,14 +103,24 @@ int main(int argc, char* argv[])
     if (ret) goto cl_free_cmd_queue;
     ret = oclw_build_program(cl_program, cl_device_id, NULL);
     if (ret) goto cl_free_program;
+
+    // init map_sqrt_exp kernel object + memory object
+    ret = oclw_create_kernobj_for_function("map_sqrt_exp", cl_program,
+                                           &map_sqrt_exp_kern);
+    if (ret) goto cl_free_program;
+    ret = oclw_create_memobj(cl_context, CL_MEM_READ_WRITE, &M1_memobj, N
+                             * sizeof(double), NULL);
+    if (ret) goto cl_free_map_sqrt_exp_kern;
+
+    // init filter_fold kernel object + memory objects
     ret = oclw_create_kernobj_for_function("filter_fold", cl_program,
                                            &filter_fold_kern);
-    if (ret) goto cl_free_program;
+    if (ret) goto cl_free_M1_memobj;
     ret = oclw_create_memobj(cl_context, CL_MEM_WRITE_ONLY, &X_memobj,
                              sizeof(double), NULL);
     if (ret) goto cl_free_filter_fold_kern;
-    ret = oclw_create_memobj(cl_context, CL_MEM_READ_ONLY, &M2_memobj,
-                             M * sizeof(double), NULL);
+    ret = oclw_create_memobj(cl_context, CL_MEM_READ_ONLY, &M2_memobj, M
+                             * sizeof(double), NULL);
     if (ret) goto cl_free_X_memobj;
     free(kernbin_buf);
 
@@ -125,6 +138,21 @@ int main(int argc, char* argv[])
         // Map. Решить поставленную задачу, заполнить массив с результатами
         for (size_t j = 0; j < N; ++j)
             M1[j] = map_sqrt_exp(M1[j]);
+        // TODO: kernel map_sqrt_exp throws infinities
+        // for (size_t j = 0; j < N; ++j)
+        //     printf(" %lf/%lf", map_sqrt_exp(M1[j]), M1[j]);
+        // printf("\n");
+        // ret = oclw_sync_write_memobj(cl_queue, M1_memobj, sizeof(double) * N, M1);
+        // if (ret) goto freeMs;
+        // ret = oclw_set_map_sqrt_exp_args(map_sqrt_exp_kern, N, &M1_memobj);
+        // if (ret) goto freeMs;
+        // ret = oclw_sync_run_task(cl_queue, map_sqrt_exp_kern);
+        // if (ret) goto freeMs;
+        // ret = oclw_sync_read_memobj(cl_queue, M1_memobj, sizeof(double) * N, M1);
+        // if (ret) goto freeMs;
+        // for (size_t j = 0; j < N; ++j)
+        //     printf(" %lf", M1[j]);
+        // printf("\n");
 
         prev = M2[0];
         // no pragmas because: of read/write dependencies
@@ -170,6 +198,10 @@ cl_free_X_memobj:
     ret |= oclw_destroy_memobj(X_memobj);
 cl_free_filter_fold_kern:
     ret |= oclw_destroy_kernel_object(filter_fold_kern);
+cl_free_M1_memobj:
+    ret |= oclw_destroy_memobj(M1_memobj);
+cl_free_map_sqrt_exp_kern:
+    ret |= oclw_destroy_kernel_object(map_sqrt_exp_kern);
 cl_free_program:
     ret |= oclw_destroy_program_object(cl_program);
 cl_free_cmd_queue:
