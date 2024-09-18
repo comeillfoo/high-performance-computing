@@ -56,7 +56,7 @@ int main(int argc, char* argv[])
 {
     const double A = 450.0; // А = Ф * И * О
     int N, ret = 0;
-    double prev, curr, X;
+    double min, X;
     size_t i, M;
     double T1, T2;
     long delta_ms;
@@ -68,6 +68,8 @@ int main(int argc, char* argv[])
 
     double* M1 = malloc(N * sizeof(double));
     double* M2 = malloc(M * sizeof(double));
+    double* Mt = malloc(M * sizeof(double));
+    Mt[0] = 0.0;
 
     T1 = omp_get_wtime(); // запомнить текущее время T1
     for (i = 0; i < 100; ++i) { // 100 экспериментов
@@ -76,20 +78,18 @@ int main(int argc, char* argv[])
         if (ret) goto freeMs;
         ret = generate_random_uniform_array(M, M2, A, 10.0 * A, i);
         if (ret) goto freeMs;
+        #pragma omp parallel for default(none) shared(M, Mt, M2)
+        for (size_t j = 0; j < M - 1; ++j)
+            Mt[j + 1] = M2[j];
 
         // Map. Решить поставленную задачу, заполнить массив с результатами
         #pragma omp parallel for default(none) shared(N, M1)
         for (size_t j = 0; j < N; ++j)
             M1[j] = map_sqrt_exp(M1[j]);
 
-        prev = M2[0];
-        M2[0] = map_abs_ctg(M2[0]);
-        // no pragmas because: of read/write dependencies
-        for (size_t j = 1; j < M; ++j) {
-            curr = map_abs_ctg(M2[j] + prev);
-            prev = M2[j];
-            M2[j] = curr;
-        }
+        #pragma omp parallel for default(none) shared(M, M2, Mt)
+        for (size_t j = 0; j < M; ++j)
+            M2[j] = map_abs_ctg(M2[j] + Mt[j]);
 
         #pragma omp parallel for default(none) shared(M1, M2, M)
         for (size_t j = 0; j < M; ++j)
@@ -98,16 +98,16 @@ int main(int argc, char* argv[])
         // Sort. Отсортировать массив с результатами указанным методом
         sort(M, M2);
 
-        prev = M2[0];
+        min = M2[0];
         // no pragma because: (1) array is already sorted and (2) just looking for first non-zero minimum
-        for (size_t j = 1; j < M && prev == 0.0; ++j)
-            prev = M2[j];
+        for (size_t j = 1; j < M && min == 0.0; ++j)
+            min = M2[j];
 
         // Reduce. Сумма синусов элементов M2, у которых при делении на минимальное ненулевое целая часть четная
         X = 0.0;
-        # pragma omp parallel for default(none) shared(M2, M, prev) reduction(+:X)
+        # pragma omp parallel for default(none) shared(M2, M, min) reduction(+:X)
         for (size_t j = 0; j < M; ++j)
-            X += is_even(M2[j] / prev) ? sin(M2[j]) : 0.0;
+            X += is_even(M2[j] / min) ? sin(M2[j]) : 0.0;
         printf("X = %lf\n", X);
 	}
     T2 = omp_get_wtime(); // запомнить текущее время T2
@@ -116,6 +116,7 @@ int main(int argc, char* argv[])
     printf("N=%d. Milliseconds passed: %ld\n", N, delta_ms);
 
 freeMs:
+    free(Mt);
     free(M2);
     free(M1);
 exit:
