@@ -58,6 +58,9 @@ int main(int argc, char* argv[])
     cl_mem X_memobj = NULL;
     cl_mem M2_memobj = NULL;
 
+    cl_kernel map_abs_ctg_kern = NULL;
+    cl_mem Mt_memobj = NULL;
+
     ret = args_parse(argc, argv, &N); // N равен первому параметру командной строки
     if (ret) goto exit;
     M = N / 2;
@@ -126,6 +129,15 @@ int main(int argc, char* argv[])
     if (ret) { free(kernbin_buf); goto cl_free_X_memobj; }
     ret = oclw_set_filter_fold_args(filter_fold_kern, M, &M2_memobj, &X_memobj);
     if (ret) { free(kernbin_buf); goto cl_free_M2_memobj; }
+
+    // init map_abs_ctg kernel object + memory objects
+    ret = oclw_create_kernobj_for_function("map_abs_ctg", cl_program,
+                                           &map_abs_ctg_kern);
+    if (ret) { free(kernbin_buf); goto cl_free_M2_memobj; }
+    ret = oclw_create_memobj(cl_context, CL_MEM_WRITE_ONLY, &Mt_memobj, M *
+                             sizeof(double), NULL);
+    if (ret) { free(kernbin_buf); goto cl_free_map_abs_ctg_kern; }
+    // TODO: set map_abs_ctg args
     free(kernbin_buf);
 
     double* M1 = malloc(N * sizeof(double));
@@ -151,7 +163,7 @@ int main(int argc, char* argv[])
         ret = oclw_sync_read_memobj(cl_queue, M1_memobj, sizeof(double) * N, M1);
         if (ret) goto freeMs;
 
-        // parallelization point
+        // parallelization point: use map_abs_ctg kernel
         for (size_t j = 0; j < M; ++j)
             M2[j] = map_abs_ctg(M2[j] + Mt[j]);
 
@@ -187,6 +199,9 @@ freeMs:
     free(Mt);
     free(M2);
     free(M1);
+    ret |= oclw_destroy_memobj(Mt_memobj);
+cl_free_map_abs_ctg_kern:
+    ret |= oclw_destroy_kernel_object(map_abs_ctg_kern);
 cl_free_M2_memobj:
     ret |= oclw_destroy_memobj(M2_memobj);
 cl_free_X_memobj:
