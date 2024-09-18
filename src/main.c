@@ -86,6 +86,7 @@ int main(int argc, char* argv[])
         if (ret) goto freeMs;
 
         prev = M2[0];
+        M2[0] = map_abs_ctg(M2[0]);
         // no pragmas because: of read/write dependencies
         for (size_t j = 1; j < M; ++j) {
             curr = map_abs_ctg(M2[j] + prev);
