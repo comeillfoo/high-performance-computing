@@ -61,6 +61,8 @@ int main(int argc, char* argv[])
     cl_kernel map_abs_ctg_kern = NULL;
     cl_mem Mt_memobj = NULL;
 
+    cl_kernel select_max_kern = NULL;
+
     ret = args_parse(argc, argv, &N); // N равен первому параметру командной строки
     if (ret) goto exit;
     M = N / 2;
@@ -124,7 +126,7 @@ int main(int argc, char* argv[])
     ret = oclw_create_memobj(cl_context, CL_MEM_WRITE_ONLY, &X_memobj,
                              sizeof(double), NULL);
     if (ret) { free(kernbin_buf); goto cl_free_filter_fold_kern; }
-    ret = oclw_create_memobj(cl_context, CL_MEM_READ_ONLY, &M2_memobj, M *
+    ret = oclw_create_memobj(cl_context, CL_MEM_READ_WRITE, &M2_memobj, M *
                              sizeof(double), NULL);
     if (ret) { free(kernbin_buf); goto cl_free_X_memobj; }
     ret = oclw_set_filter_fold_args(filter_fold_kern, M, &M2_memobj, &X_memobj);
@@ -137,7 +139,13 @@ int main(int argc, char* argv[])
     ret = oclw_create_memobj(cl_context, CL_MEM_WRITE_ONLY, &Mt_memobj, M *
                              sizeof(double), NULL);
     if (ret) { free(kernbin_buf); goto cl_free_map_abs_ctg_kern; }
-    // TODO: set map_abs_ctg args
+    ret = oclw_set_map_abs_ctg_args(map_abs_ctg_kern, M, &Mt_memobj, &M2_memobj);
+    if (ret) { free(kernbin_buf); goto cl_free_Mt_memobj; }
+    ret = oclw_create_kernobj_for_function("select_max", cl_program,
+                                           &select_max_kern);
+    if (ret) { free(kernbin_buf); goto cl_free_Mt_memobj; }
+    ret = oclw_set_select_max_args(select_max_kern, M, &M1_memobj, &M2_memobj);
+    if (ret) { free(kernbin_buf); goto cl_free_select_max_kern; }
     free(kernbin_buf);
 
     double* M1 = malloc(N * sizeof(double));
@@ -164,12 +172,24 @@ int main(int argc, char* argv[])
         if (ret) goto freeMs;
 
         // parallelization point: use map_abs_ctg kernel
-        for (size_t j = 0; j < M; ++j)
-            M2[j] = map_abs_ctg(M2[j] + Mt[j]);
+        cl_event map_abs_ctg_wait_list[2];
+        ret = oclw_async_write_memobj(cl_queue, Mt_memobj, sizeof(double) * M, Mt,
+                                      &map_abs_ctg_wait_list[0]);
+        if (ret) goto freeMs;
+        ret = oclw_async_write_memobj(cl_queue, M2_memobj, sizeof(double) * M, M2,
+                                      &map_abs_ctg_wait_list[1]);
+        if (ret) goto freeMs;
+        ret = oclw_sync_run_task_after_events(cl_queue, map_abs_ctg_kern, 2,
+                                              map_abs_ctg_wait_list);
+        if (ret) goto freeMs;
+        ret = oclw_sync_read_memobj(cl_queue, M2_memobj, sizeof(double) * M, M2);
+        if (ret) goto freeMs;
 
-        // parallelization point
-        for (size_t j = 0; j < M; ++j)
-            M2[j] = (M1[j] > M2[j]) ? M1[j] : M2[j];
+        // parallelization point: use select_max kernel
+        ret = oclw_sync_run_task(cl_queue, select_max_kern);
+        if (ret) goto freeMs;
+        ret = oclw_sync_read_memobj(cl_queue, M2_memobj, sizeof(double) * M, M2);
+        if (ret) goto freeMs;
 
         // Sort. Отсортировать массив с результатами указанным методом
         sort(M, M2);
@@ -199,6 +219,9 @@ freeMs:
     free(Mt);
     free(M2);
     free(M1);
+cl_free_select_max_kern:
+    ret |= oclw_destroy_kernel_object(select_max_kern);
+cl_free_Mt_memobj:
     ret |= oclw_destroy_memobj(Mt_memobj);
 cl_free_map_abs_ctg_kern:
     ret |= oclw_destroy_kernel_object(map_abs_ctg_kern);

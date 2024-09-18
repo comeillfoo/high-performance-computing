@@ -23,3 +23,10 @@ kernel void map_abs_ctg(unsigned long M, global double* Mt, global double* M2)
     for (unsigned long i = 0; i < M; ++i)
         M2[i] = fabs(1.0 / tan(M2[i] + Mt[i]));
 }
+
+// source: https://math.stackexchange.com/a/67495
+kernel void select_max(unsigned long M, global double* M1, global double* M2)
+{
+    for (unsigned long i = 0; i < M; ++i)
+        M2[i] = (M2[i] + M1[i] + fabs(M2[i] - M1[i])) / 2;
+}

@@ -283,6 +283,16 @@ int oclw_sync_write_memobj(cl_command_queue queue, cl_mem mem, size_t size,
     return 1;
 }
 
+int oclw_async_write_memobj(cl_command_queue queue, cl_mem mem, size_t size,
+                            void* ptr, cl_event* event)
+{
+    cl_int cl_ret = clEnqueueWriteBuffer(queue, mem, CL_FALSE, 0, size, ptr, 0,
+                                         NULL, event);
+    if (cl_ret == CL_SUCCESS) return 0;
+    oclw_error(cl_ret, "Unable to write buffer to memory");
+    return 1;
+}
+
 int oclw_sync_read_memobj(cl_command_queue queue, cl_mem mem, size_t size,
                           void* ptr)
 {
@@ -294,18 +304,36 @@ int oclw_sync_read_memobj(cl_command_queue queue, cl_mem mem, size_t size,
     return 1;
 }
 
-int oclw_sync_run_task(cl_command_queue queue, cl_kernel kernel)
+int oclw_async_read_memobj(cl_command_queue queue, cl_mem mem, size_t size,
+                           void* ptr, cl_event* event)
+{
+    cl_int cl_ret = clEnqueueReadBuffer(queue, mem, CL_FALSE, 0, size, ptr, 0,
+                                        NULL, event);
+    if (cl_ret == CL_SUCCESS) return 0;
+    oclw_error(cl_ret, "Unable to read buffer from memory");
+    return 1;
+}
+
+int oclw_sync_run_task_after_events(cl_command_queue queue, cl_kernel kernel,
+                                    cl_uint num_events,
+                                    cl_event events[num_events])
 {
     size_t global_size = 1;
     size_t local_size = 4;
     cl_event event;
     cl_int cl_ret = clEnqueueNDRangeKernel(queue, kernel, 1, NULL, &global_size,
-                                           &local_size, 0, NULL, &event);
+                                           &local_size, num_events, events,
+                                           &event);
     if (cl_ret != CL_SUCCESS) {
         oclw_error(cl_ret, "Unable to run task");
         return 1;
     }
     return oclw_wait_till_completion(event);
+}
+
+int oclw_sync_run_task(cl_command_queue queue, cl_kernel kernel)
+{
+    return oclw_sync_run_task_after_events(queue, kernel, 0, NULL);
 }
 
 #define oclw_setarg_error(errno, arg) \
@@ -327,12 +355,10 @@ int oclw_set_kernel_arg(cl_kernel kernel, cl_uint index, size_t arg_size,
 int oclw_set_filter_fold_args(cl_kernel kernel, size_t M, cl_mem* M2, cl_mem* X)
 {
     int ret = oclw_set_kernel_arg(kernel, 1, sizeof(M), &M, "M");
-    if (ret) goto exit;
+    if (ret) return ret;
     ret = oclw_set_kernel_arg(kernel, 2, sizeof(cl_mem), M2, "M2");
-    if (ret) goto exit;
-    ret = oclw_set_kernel_arg(kernel, 3, sizeof(cl_mem), X, "X");
-exit:
-    return ret;
+    if (ret) return ret;
+    return oclw_set_kernel_arg(kernel, 3, sizeof(cl_mem), X, "X");
 }
 
 int oclw_set_filter_fold_min(cl_kernel kernel, double min)
@@ -345,4 +371,22 @@ int oclw_set_map_sqrt_exp_args(cl_kernel kernel, size_t N, cl_mem* M1)
     int ret = oclw_set_kernel_arg(kernel, 0, sizeof(N), &N, "N");
     if (ret) return ret;
     return oclw_set_kernel_arg(kernel, 1, sizeof(cl_mem), M1, "M1");
+}
+
+int oclw_set_map_abs_ctg_args(cl_kernel kernel, size_t M, cl_mem* Mt, cl_mem* M2)
+{
+    int ret = oclw_set_kernel_arg(kernel, 0, sizeof(M), &M, "M");
+    if (ret) return ret;
+    ret = oclw_set_kernel_arg(kernel, 1, sizeof(cl_mem), Mt, "Mt");
+    if (ret) return ret;
+    return oclw_set_kernel_arg(kernel, 2, sizeof(cl_mem), M2, "M2");
+}
+
+int oclw_set_select_max_args(cl_kernel kernel, size_t M, cl_mem* M1, cl_mem* M2)
+{
+    int ret = oclw_set_kernel_arg(kernel, 0, sizeof(M), &M, "M");
+    if (ret) return ret;
+    ret = oclw_set_kernel_arg(kernel, 1, sizeof(cl_mem), M1, "M1");
+    if (ret) return ret;
+    return oclw_set_kernel_arg(kernel, 2, sizeof(cl_mem), M2, "M2");
 }
