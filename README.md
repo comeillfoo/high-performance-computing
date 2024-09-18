@@ -66,3 +66,8 @@ For 4 threads:
 - $N_2$: 19900
 
 ### OpenCL stage results
+
+For `local_size==4`:
+
+- $N_1$: 64
+- $N_2$: 10560
