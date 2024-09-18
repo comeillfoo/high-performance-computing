@@ -32,8 +32,11 @@ static inline bool is_even(double number)
 
 static int generate_random_uniform_array(size_t size, double array[size],
                                          double a, double b, size_t threads);
+static void* select_max_routine(void* arg);
+static void* select_map_abs_ctg_routine(void* arg);
 static int parallel_selector_arrays(size_t size, double src[size],
-                                    double dst[size], size_t threads);
+                                    double dst[size], void* (*routine)(void* arg),
+                                    size_t threads);
 static int parallel_reduce_array(double* acc, size_t size, double array[size],
                                  double min, size_t threads);
 
@@ -61,7 +64,7 @@ int main(int argc, char* argv[])
 {
     const double A = 450.0; // А = Ф * И * О
     int N, ret = 0;
-    double prev, curr, X;
+    double min, X;
     size_t i, M;
     struct timeval T1, T2;
     long delta_ms;
@@ -72,6 +75,8 @@ int main(int argc, char* argv[])
 
     double* M1 = malloc(N * sizeof(double));
     double* M2 = malloc(M * sizeof(double));
+    double* Mt = malloc(M * sizeof(double));
+    Mt[0] = 0.0;
 
     gettimeofday(&T1, NULL); // запомнить текущее время T1
     for (i = 0; i < 100; ++i) { // 100 экспериментов
@@ -80,35 +85,30 @@ int main(int argc, char* argv[])
         if (ret) goto freeMs;
         ret = generate_random_uniform_array(M, M2, A, 10.0 * A, 4);
         if (ret) goto freeMs;
+        for (size_t j = 0; j < M - 1; ++j)
+            Mt[j + 1] = M2[j];
 
         // Map. Решить поставленную задачу, заполнить массив с результатами
         ret = parallel_map_array(N, M1, map_sqrt_exp, 4);
         if (ret) goto freeMs;
-
-        prev = M2[0];
-        M2[0] = map_abs_ctg(M2[0]);
-        // no pragmas because: of read/write dependencies
-        for (size_t j = 1; j < M; ++j) {
-            curr = map_abs_ctg(M2[j] + prev);
-            prev = M2[j];
-            M2[j] = curr;
-        }
+        ret = parallel_selector_arrays(M, Mt, M2, select_map_abs_ctg_routine, 4);
+        if (ret) goto freeMs;
 
         // #pragma omp parallel for default(none) shared(M1, M2, M)
-        ret = parallel_selector_arrays(M, M1, M2, 4);
+        ret = parallel_selector_arrays(M, M1, M2, select_max_routine, 4);
         if (ret) goto freeMs;
 
         // Sort. Отсортировать массив с результатами указанным методом
         sort(M, M2);
 
-        prev = M2[0];
+        min = M2[0];
         // no pragma because: (1) array is already sorted and (2) just looking for first non-zero minimum
-        for (size_t j = 1; j < M && prev == 0.0; ++j)
-            prev = M2[j];
+        for (size_t j = 1; j < M && min == 0.0; ++j)
+            min = M2[j];
 
         // Reduce. Сумма синусов элементов M2, у которых при делении на минимальное ненулевое целая часть четная
         X = 0.0;
-        ret = parallel_reduce_array(&X, M, M2, prev, 4);
+        ret = parallel_reduce_array(&X, M, M2, min, 4);
         if (ret) goto freeMs;
 
         printf("X = %lf\n", X);
@@ -120,6 +120,7 @@ int main(int argc, char* argv[])
     printf("N=%d. Milliseconds passed: %ld\n", N, delta_ms);
 
 freeMs:
+    free(Mt);
     free(M2);
     free(M1);
 exit:
@@ -205,8 +206,17 @@ static void* select_max_routine(void* arg)
 #undef MAX
 }
 
+static void* select_map_abs_ctg_routine(void* arg)
+{
+    struct _selector_args* args = (struct _selector_args*) arg;
+    for (size_t i = 0; i < args->size; ++i)
+        args->dst[i] = map_abs_ctg(args->src[i] + args->dst[i]);
+    return 0;
+}
+
 static int parallel_selector_arrays(size_t size, double src[size],
-                                    double dst[size], size_t threads)
+                                    double dst[size], void* (*routine)(void* arg),
+                                    size_t threads)
 {
     int ret = 0;
     pthread_t threads_id[threads];
@@ -221,7 +231,7 @@ static int parallel_selector_arrays(size_t size, double src[size],
         threads_args[i].dst = (i > 0)
             ? (threads_args[i - 1].dst + threads_args[i - 1].size)
             : dst;
-        ret = pthread_create(&threads_id[i], NULL, select_max_routine,
+        ret = pthread_create(&threads_id[i], NULL, routine,
                        (void*)&threads_args[i]);
         if (ret) return ret;
     }
