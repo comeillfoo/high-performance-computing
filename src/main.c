@@ -90,42 +90,42 @@ int main(int argc, char* argv[])
     fclose_verbose(kernbin_stream);
 
     ret = oclw_get_default_platform(&cl_platform_id);
-    if (ret) goto exit;
+    if (ret) { free(kernbin_buf); goto exit; }
     ret = oclw_get_default_device(cl_platform_id, &cl_device_id);
-    if (ret) goto exit;
+    if (ret) { free(kernbin_buf); goto exit; }
     ret = oclw_create_context(&cl_device_id, &cl_context);
-    if (ret) goto exit;
+    if (ret) { free(kernbin_buf); goto exit; }
     ret = oclw_create_cmd_queue(cl_context, cl_device_id, &cl_queue);
-    if (ret) goto cl_free_context;
+    if (ret) { free(kernbin_buf); goto cl_free_context; }
     ret = oclw_create_program_from_binary(cl_context, cl_device_id, &cl_program,
                                           sizeof(unsigned char) * kernbin_length,
                                           kernbin_buf);
-    if (ret) goto cl_free_cmd_queue;
+    if (ret) { free(kernbin_buf); goto cl_free_cmd_queue; }
     ret = oclw_build_program(cl_program, cl_device_id, NULL);
-    if (ret) goto cl_free_program;
+    if (ret) { free(kernbin_buf); goto cl_free_program; }
 
     // init map_sqrt_exp kernel object + memory object
     ret = oclw_create_kernobj_for_function("map_sqrt_exp", cl_program,
                                            &map_sqrt_exp_kern);
-    if (ret) goto cl_free_program;
-    ret = oclw_create_memobj(cl_context, CL_MEM_READ_WRITE, &M1_memobj, N
-                             * sizeof(double), NULL);
-    if (ret) goto cl_free_map_sqrt_exp_kern;
+    if (ret) { free(kernbin_buf); goto cl_free_program; }
+    ret = oclw_create_memobj(cl_context, CL_MEM_READ_WRITE, &M1_memobj, N *
+                             sizeof(double), NULL);
+    if (ret) { free(kernbin_buf); goto cl_free_map_sqrt_exp_kern; }
     ret = oclw_set_map_sqrt_exp_args(map_sqrt_exp_kern, N, &M1_memobj);
-    if (ret) goto cl_free_M1_memobj;
+    if (ret) { free(kernbin_buf); goto cl_free_M1_memobj; }
 
     // init filter_fold kernel object + memory objects
     ret = oclw_create_kernobj_for_function("filter_fold", cl_program,
                                            &filter_fold_kern);
-    if (ret) goto cl_free_M1_memobj;
+    if (ret) { free(kernbin_buf); goto cl_free_M1_memobj; }
     ret = oclw_create_memobj(cl_context, CL_MEM_WRITE_ONLY, &X_memobj,
                              sizeof(double), NULL);
-    if (ret) goto cl_free_filter_fold_kern;
-    ret = oclw_create_memobj(cl_context, CL_MEM_READ_ONLY, &M2_memobj, M
-                             * sizeof(double), NULL);
-    if (ret) goto cl_free_X_memobj;
+    if (ret) { free(kernbin_buf); goto cl_free_filter_fold_kern; }
+    ret = oclw_create_memobj(cl_context, CL_MEM_READ_ONLY, &M2_memobj, M *
+                             sizeof(double), NULL);
+    if (ret) { free(kernbin_buf); goto cl_free_X_memobj; }
     ret = oclw_set_filter_fold_args(filter_fold_kern, M, &M2_memobj, &X_memobj);
-    if (ret) goto cl_free_M2_memobj;
+    if (ret) { free(kernbin_buf); goto cl_free_M2_memobj; }
     free(kernbin_buf);
 
     double* M1 = malloc(N * sizeof(double));
@@ -148,6 +148,7 @@ int main(int argc, char* argv[])
         if (ret) goto freeMs;
 
         prev = M2[0];
+        M2[0] = map_abs_ctg(M2[0] + 0.0);
         // no pragmas because: of read/write dependencies
         for (size_t j = 1; j < M; ++j) {
             curr = map_abs_ctg(M2[j] + prev);
