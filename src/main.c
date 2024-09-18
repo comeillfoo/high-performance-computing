@@ -111,6 +111,8 @@ int main(int argc, char* argv[])
     ret = oclw_create_memobj(cl_context, CL_MEM_READ_WRITE, &M1_memobj, N
                              * sizeof(double), NULL);
     if (ret) goto cl_free_map_sqrt_exp_kern;
+    ret = oclw_set_map_sqrt_exp_args(map_sqrt_exp_kern, N, &M1_memobj);
+    if (ret) goto cl_free_M1_memobj;
 
     // init filter_fold kernel object + memory objects
     ret = oclw_create_kernobj_for_function("filter_fold", cl_program,
@@ -122,6 +124,8 @@ int main(int argc, char* argv[])
     ret = oclw_create_memobj(cl_context, CL_MEM_READ_ONLY, &M2_memobj, M
                              * sizeof(double), NULL);
     if (ret) goto cl_free_X_memobj;
+    ret = oclw_set_filter_fold_args(filter_fold_kern, M, &M2_memobj, &X_memobj);
+    if (ret) goto cl_free_M2_memobj;
     free(kernbin_buf);
 
     double* M1 = malloc(N * sizeof(double));
@@ -136,23 +140,12 @@ int main(int argc, char* argv[])
         if (ret) goto freeMs;
 
         // Map. Решить поставленную задачу, заполнить массив с результатами
-        for (size_t j = 0; j < N; ++j)
-            M1[j] = map_sqrt_exp(M1[j]);
-        // TODO: kernel map_sqrt_exp throws infinities
-        // for (size_t j = 0; j < N; ++j)
-        //     printf(" %lf/%lf", map_sqrt_exp(M1[j]), M1[j]);
-        // printf("\n");
-        // ret = oclw_sync_write_memobj(cl_queue, M1_memobj, sizeof(double) * N, M1);
-        // if (ret) goto freeMs;
-        // ret = oclw_set_map_sqrt_exp_args(map_sqrt_exp_kern, N, &M1_memobj);
-        // if (ret) goto freeMs;
-        // ret = oclw_sync_run_task(cl_queue, map_sqrt_exp_kern);
-        // if (ret) goto freeMs;
-        // ret = oclw_sync_read_memobj(cl_queue, M1_memobj, sizeof(double) * N, M1);
-        // if (ret) goto freeMs;
-        // for (size_t j = 0; j < N; ++j)
-        //     printf(" %lf", M1[j]);
-        // printf("\n");
+        ret = oclw_sync_write_memobj(cl_queue, M1_memobj, sizeof(double) * N, M1);
+        if (ret) goto freeMs;
+        ret = oclw_sync_run_task(cl_queue, map_sqrt_exp_kern);
+        if (ret) goto freeMs;
+        ret = oclw_sync_read_memobj(cl_queue, M1_memobj, sizeof(double) * N, M1);
+        if (ret) goto freeMs;
 
         prev = M2[0];
         // no pragmas because: of read/write dependencies
@@ -175,8 +168,7 @@ int main(int argc, char* argv[])
         // Reduce. Сумма синусов элементов M2, у которых при делении на минимальное ненулевое целая часть четная
         ret = oclw_sync_write_memobj(cl_queue, M2_memobj, sizeof(double) * M, M2);
         if (ret) goto freeMs;
-        ret = oclw_set_filter_fold_args(filter_fold_kern, prev, M, &M2_memobj,
-                                        &X_memobj);
+        ret = oclw_set_filter_fold_min(filter_fold_kern, prev);
         if (ret) goto freeMs;
         ret = oclw_sync_run_task(cl_queue, filter_fold_kern);
         if (ret) goto freeMs;
@@ -193,6 +185,7 @@ int main(int argc, char* argv[])
 freeMs:
     free(M2);
     free(M1);
+cl_free_M2_memobj:
     ret |= oclw_destroy_memobj(M2_memobj);
 cl_free_X_memobj:
     ret |= oclw_destroy_memobj(X_memobj);

@@ -13,6 +13,8 @@ kernel void filter_fold(double min, unsigned long M, constant double* M2,
 
 kernel void map_sqrt_exp(unsigned long N, global double* M1)
 {
+    private double sqrt_res;
+    private double exp_res;
     for (unsigned long i = 0; i < N; ++i)
         M1[i] = exp(sqrt(M1[i]));
 }

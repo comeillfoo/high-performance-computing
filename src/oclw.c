@@ -296,7 +296,7 @@ int oclw_sync_read_memobj(cl_command_queue queue, cl_mem mem, size_t size,
 
 int oclw_sync_run_task(cl_command_queue queue, cl_kernel kernel)
 {
-    size_t global_size = 1024;
+    size_t global_size = 1;
     size_t local_size = 4;
     cl_event event;
     cl_int cl_ret = clEnqueueNDRangeKernel(queue, kernel, 1, NULL, &global_size,
@@ -324,18 +324,20 @@ int oclw_set_kernel_arg(cl_kernel kernel, cl_uint index, size_t arg_size,
     return 0;
 }
 
-int oclw_set_filter_fold_args(cl_kernel kernel, double min, size_t M, cl_mem* M2,
-                              cl_mem* X)
+int oclw_set_filter_fold_args(cl_kernel kernel, size_t M, cl_mem* M2, cl_mem* X)
 {
-    int ret = oclw_set_kernel_arg(kernel, 0, sizeof(cl_double), &min, "min");
-    if (ret) goto exit;
-    ret = oclw_set_kernel_arg(kernel, 1, sizeof(M), &M, "M");
+    int ret = oclw_set_kernel_arg(kernel, 1, sizeof(M), &M, "M");
     if (ret) goto exit;
     ret = oclw_set_kernel_arg(kernel, 2, sizeof(cl_mem), M2, "M2");
     if (ret) goto exit;
     ret = oclw_set_kernel_arg(kernel, 3, sizeof(cl_mem), X, "X");
 exit:
     return ret;
+}
+
+int oclw_set_filter_fold_min(cl_kernel kernel, double min)
+{
+    return oclw_set_kernel_arg(kernel, 0, sizeof(cl_double), &min, "min");
 }
 
 int oclw_set_map_sqrt_exp_args(cl_kernel kernel, size_t N, cl_mem* M1)
