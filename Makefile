@@ -5,20 +5,38 @@ OCLWC=tools/oclwc
 INCDIR=include
 SRCDIR=src
 BUILDDIR=build
-TARGETS=main mappers sorts oclw futils
-TARGET=app
+
+JUST_TARGETS=just-main just
+OCL_TARGETS=ocl-main mappers sorts oclw futils
 
 KERNELS=kernel.clbin
 TOOLS=$(OCLWC)
 
 CFLAGS=-O3 -Wall -Werror -pedantic -D CL_TARGET_OPENCL_VERSION=300 -I$(INCDIR)
-LIBS=-lm -lOpenCL
+LIBS=-lm
+OCL_LIBS=$(LIBS) -lOpenCL
 
 
-all: $(TARGET) $(TOOLS) $(KERNELS)
+all: help
 
-$(TARGET): $(addsuffix .o,$(addprefix $(BUILDDIR)/,$(TARGETS)))
-	$(LD) $(LDFLAGS) $^ -o $(TARGET) $(LIBS)
+help:
+	@echo 'Targets:'
+	@echo '- just-main . build default main program with no parallelization'
+	@echo '- omp-main  . build main with parallelization using OpenMP'
+	@echo '- pt-main   . build main with parallelization using Posix Threads'
+	@echo '- ocl-main  . build main with parallelization using OpenCL'
+
+just-main: $(addsuffix .o,$(addprefix $(BUILDDIR)/,$(JUST_TARGETS)))
+	$(LD) $(LDFLAGS) $^ -o $@ $(LIBS)
+
+ocl-main: $(addsuffix .o,$(addprefix $(BUILDDIR)/,$(OCL_TARGETS))) $(TOOLS) $(KERNELS)
+	$(LD) $(LDFLAGS) $(addsuffix .o,$(addprefix $(BUILDDIR)/,$(OCL_TARGETS))) -o $@ $(OCL_LIBS)
+
+$(OCLWC): $(BUILDDIR)/tools/oclwc.o $(BUILDDIR)/oclw.o $(BUILDDIR)/futils.o
+	$(LD) $(LDFLAGS) $^ -o $@ $(OCL_LIBS)
+
+$(KERNELS): $(addsuffix .cl, $(addprefix $(SRCDIR)/kernels/, main))
+	$(OCLWC) $@ $^
 
 $(BUILDDIR):
 	mkdir -p $@
@@ -32,17 +50,10 @@ $(BUILDDIR)/%.o: $(SRCDIR)/%.c $(BUILDDIR)
 $(BUILDDIR)/tools/%.o: $(SRCDIR)/tools/%.c $(BUILDDIR)/tools
 	$(CC) -c $(CFLAGS) $< -o $@
 
-$(OCLWC): $(BUILDDIR)/tools/oclwc.o $(BUILDDIR)/oclw.o $(BUILDDIR)/futils.o
-	$(LD) $(LDFLAGS) $^ -o $@ $(LIBS)
-
-$(KERNELS): $(addsuffix .cl, $(addprefix $(SRCDIR)/kernels/, main))
-	$(OCLWC) $@ $^
-
-
 clean:
 	rm -rf $(BUILDDIR)
 	rm -f $(OCLWC)
 	rm -f $(KERNELS)
-	rm -f $(TARGET)
+	rm -f ocl-main just-main
 
 .PHONY: clean
