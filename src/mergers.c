@@ -2,15 +2,28 @@
 
 #include <math.h>
 
-double merger_pow_rev(double a, double b)
+double merger_pow(double a, double b)
 {
-    return pow(b, a);
+    return pow(a, b);
 }
 
-void just_merge_matrices(size_t rows, size_t cols, double** restrict src,
-                         double** restrict dst, merger fn)
+#define MIN(a, b) (((a) < (b))? (a) : (b))
+int just_merge_matrices(struct matrix* restrict srcp,
+                        struct matrix* restrict dstp, merger fn)
 {
-    for (size_t i = 0; i < rows; ++i)
-        for (size_t j = 0; j < cols; ++j)
-            dst[i][j] = fn(dst[i][j], src[i][j]);
+    int ret = 0;
+    if (!srcp || !dstp) return -1;
+    for (size_t i = 0; i < MIN(srcp->rows, dstp->rows); ++i)
+        for (size_t j = 0; j < MIN(srcp->cols, dstp->cols); ++j) {
+            double a = 0.0;
+            double b = 0.0;
+            ret = double_matrix_get(srcp, i, j, &a);
+            if (ret) return ret;
+            ret = double_matrix_get(dstp, i, j, &b);
+            if (ret) return ret;
+            ret = double_matrix_set(dstp, i, j, fn(a, b));
+            if (ret) return ret;
+        }
+    return ret;
 }
+#undef MIN

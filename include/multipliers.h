@@ -2,8 +2,9 @@
 #define _MULTIPLIERS_H_
 
 #include <stdlib.h>
+#include "matrix.h"
 
-void just_multiply_matrices(size_t m, size_t n, double** restrict A,
-                            double** restrict B, double** restrict C);
+int just_multiply_matrices(struct matrix* restrict A, struct matrix* restrict B,
+                           struct matrix* restrict C);
 
 #endif // _MULTIPLIERS_H_

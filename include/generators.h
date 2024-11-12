@@ -2,6 +2,7 @@
 #define _GENERATORS_H_
 
 #include <stdlib.h>
+#include "matrix.h"
 
 #ifndef __GNUC__
 // here we assume that unsigned is 32bit integer
@@ -15,6 +16,6 @@ static unsigned rand_r(unsigned *seed)
 }
 #endif
 
-int just_generate_random_matrix(size_t rows, size_t cols, double** matrix,
-								double a, double b, unsigned seed);
+int just_generate_random_matrix(struct matrix* matp, double a, double b,
+								unsigned seed);
 #endif // _GENERATORS_H_

@@ -8,13 +8,15 @@ static inline double random_double_r(double a, double b, unsigned* seedp)
     return a + ((double)rand_r(seedp)) / (((double) RAND_MAX) / (b - a));
 }
 
-int just_generate_random_matrix(size_t rows, size_t cols, double** matrix,
-                                double a, double b, unsigned seed)
+int just_generate_random_matrix(struct matrix* matp, double a, double b,
+								unsigned seed)
 {
-    if (!matrix) return EINVAL;
-
-    for (size_t i = 0; i < rows; ++i)
-        for (size_t j = 0; j < cols; ++j)
-            matrix[i][j] = random_double_r(a, b, &seed);
-    return 0;
+    int ret = 0;
+    if (!matp) return -1;
+    for (size_t i = 0; i < matp->rows; ++i)
+        for (size_t j = 0; j < matp->cols; ++j) {
+            ret = double_matrix_set(matp, i, j, random_double_r(a, b, &seed));
+            if (ret) return ret;
+        }
+    return ret;
 }

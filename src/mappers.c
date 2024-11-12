@@ -2,14 +2,6 @@
 
 #include <math.h>
 
-
-struct map_args
-{
-    size_t size;
-    double* array;
-    converter fn;
-};
-
 double map_sqrt_exp(double number)
 {
     return exp(sqrt(number));
@@ -25,11 +17,20 @@ double map_coth_sqrt(double number)
     return 1.0 / tanh(sqrt(number));
 }
 
-void just_map_matrix(size_t rows, size_t cols, double** matrix, converter fn)
+
+int just_map_matrix(struct matrix* matp, converter fn)
 {
-    for (size_t i = 0; i < rows; ++i)
-        for (size_t j = 0; j < cols; ++j)
-            matrix[i][j] = fn(matrix[i][j]);
+    int ret = 0;
+    if (!matp) return -1;
+    for (size_t i = 0; i < matp->rows; ++i)
+        for (size_t j = 0; j < matp->cols; ++j) {
+            double value = 0.0;
+            ret = double_matrix_get(matp, i, j, &value);
+            if (ret) return ret;
+            ret = double_matrix_set(matp, i, j, fn(value));
+            if (ret) return ret;
+        }
+    return 0;
 }
 
 double map_abs_sin_sum(double a, double b)
@@ -37,15 +38,36 @@ double map_abs_sin_sum(double a, double b)
     return fabs(sin(a + b));
 }
 
-void just_map_matrices(size_t rows, size_t cols, double** restrict src,
-                       double** restrict dst, applicator fn)
+int just_map_matrices(struct matrix* restrict srcp, struct matrix* restrict dstp,
+                      applicator fn)
 {
-    for (size_t i = 0; i < rows; ++i)
-        for (size_t j = 0; j < cols; ++j)
-            dst[i][j] = fn(dst[i][j], src[i][j]);
+    int ret = 0;
+    if (!srcp || !dstp) return -1;
+    if (srcp->rows != dstp->rows || srcp->cols != dstp->cols)
+        return -1;
+
+    for (size_t i = 0; i < dstp->rows; ++i)
+        for (size_t j = 0; j < dstp->cols; ++j) {
+            double a = 0.0;
+            double b = 0.0;
+            ret = double_matrix_get(srcp, i, j, &a);
+            if (ret) return ret;
+            ret = double_matrix_get(dstp, i, j, &b);
+            if (ret) return ret;
+            ret = double_matrix_set(dstp, i, j, fn(b, a));
+            if (ret) return ret;
+        }
+    return ret;
 }
 
 #ifdef _PTHREAD_H
+struct map_args
+{
+    size_t size;
+    double* array;
+    converter fn;
+};
+
 static void* map_subarray(void* arg)
 {
     struct map_args* args = (struct map_args*) arg;
