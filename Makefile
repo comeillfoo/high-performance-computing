@@ -6,7 +6,7 @@ INCDIR=include
 SRCDIR=src
 BUILDDIR=build
 
-JUST_TARGETS=just-main just
+JUST_TARGETS=main generators mappers mergers multipliers
 OCL_TARGETS=ocl-main mappers sorts oclw futils
 
 KERNELS=kernel.clbin

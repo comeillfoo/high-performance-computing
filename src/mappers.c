@@ -1,21 +1,48 @@
-#include <stdlib.h>
+#include "mappers.h"
+
 #include <math.h>
 
-#include "mappers.h"
 
 struct map_args
 {
     size_t size;
     double* array;
-    mapper fn;
+    converter fn;
 };
 
-double map_sqrt_exp(double number) {
+double map_sqrt_exp(double number)
+{
     return exp(sqrt(number));
 }
 
-double map_abs_ctg(double number) {
+double map_abs_ctg(double number)
+{
     return fabs(1.0 / tan(number));
+}
+
+double map_coth_sqrt(double number)
+{
+    return 1.0 / tanh(sqrt(number));
+}
+
+void just_map_matrix(size_t rows, size_t cols, double** matrix, converter fn)
+{
+    for (size_t i = 0; i < rows; ++i)
+        for (size_t j = 0; j < cols; ++j)
+            matrix[i][j] = fn(matrix[i][j]);
+}
+
+double map_abs_sin_sum(double a, double b)
+{
+    return fabs(sin(a + b));
+}
+
+void just_map_matrices(size_t rows, size_t cols, double** restrict src,
+                       double** restrict dst, applicator fn)
+{
+    for (size_t i = 0; i < rows; ++i)
+        for (size_t j = 0; j < cols; ++j)
+            dst[i][j] = fn(dst[i][j], src[i][j]);
 }
 
 #ifdef _PTHREAD_H

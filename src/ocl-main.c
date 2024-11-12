@@ -14,21 +14,10 @@
 
 #define KERNEL_PATH "./kernel.clbin"
 
-#ifndef __GNUC__
-// here we assume that unsigned is 32bit integer
-static unsigned rand_r(unsigned *seed)
-{
-	(*seed) ^= (*seed) >> 11;
-	(*seed) ^= (*seed) << 7 & 0x9D2C5680;
-	(*seed) ^= (*seed) << 15 & 0xEFC60000;
-	(*seed) ^= (*seed) >> 18;
-	return (*seed);
-}
-#endif
 
 static int args_parse(int argc, char* argv[], int* Np);
 static inline bool is_even(double number);
-static int generate_random_uniform_array(size_t size, double array[size],
+static int just_randomize_matrix_uniform(size_t size, double array[size],
                                          double a, double b, unsigned seed);
 
 
@@ -156,9 +145,9 @@ int main(int argc, char* argv[])
     gettimeofday(&T1, NULL); // запомнить текущее время T1
     for (i = 0; i < 100; ++i) { // 100 экспериментов
         // Generate. Заполнить массив исходных данных размером N
-        ret = generate_random_uniform_array(N, M1, 1.0, A, i);
+        ret = just_randomize_matrix_uniform(N, M1, 1.0, A, i);
         if (ret) goto freeMs;
-        ret = generate_random_uniform_array(M, M2, A, 10.0 * A, i);
+        ret = just_randomize_matrix_uniform(M, M2, A, 10.0 * A, i);
         if (ret) goto freeMs;
         for (size_t j = 0; j < M - 1; ++j)
             Mt[j + 1] = M2[j];
@@ -276,7 +265,7 @@ static inline double random_double_r(double a, double b, unsigned* seedp)
     return a + ((double)rand_r(seedp)) / (((double) RAND_MAX) / (b - a));
 }
 
-static int generate_random_uniform_array(size_t size, double array[size],
+static int just_randomize_matrix_uniform(size_t size, double array[size],
                                          double a, double b, unsigned seed)
 {
     if (!array) return EINVAL;

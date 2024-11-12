@@ -1,5 +1,16 @@
 # high-performance-computing
 
+## Parameters
+
+```
+Generate. A = S(8) * N(5) * M(10) = 400
+
+Map M1. B = 7; X = 1 + (24 mod B) = 4
+Map M2. B = 8; X = 1 + (24 mod B) = 1
+
+Merge. B = 6; X = 1 + 24 mod 6 = 1
+```
+
 ## Setup and Info
 
 ### OpenCL
