@@ -2,14 +2,14 @@
 
 #include <math.h>
 
-double merger_pow(double a, double b)
+double merge_by_pow(double a, double b)
 {
     return pow(a, b);
 }
 
 #define MIN(a, b) (((a) < (b))? (a) : (b))
-int just_merge_matrices(struct matrix* restrict srcp,
-                        struct matrix* restrict dstp, merger fn)
+int merge_matrices(struct matrix* restrict srcp, struct matrix* restrict dstp,
+                   merger fn)
 {
     int ret = 0;
     if (!srcp || !dstp) return -1;

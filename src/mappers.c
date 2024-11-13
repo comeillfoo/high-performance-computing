@@ -2,23 +2,23 @@
 
 #include <math.h>
 
-double map_sqrt_exp(double number)
+double apply_sqrt_exp(double number)
 {
     return exp(sqrt(number));
 }
 
-double map_abs_ctg(double number)
+double apply_abs_ctg(double number)
 {
     return fabs(1.0 / tan(number));
 }
 
-double map_coth_sqrt(double number)
+double apply_coth_sqrt(double number)
 {
     return 1.0 / tanh(sqrt(number));
 }
 
 
-int just_map_matrix(struct matrix* matp, converter fn)
+int map_matrix(struct matrix* matp, applicator fn)
 {
     int ret = 0;
     if (!matp) return -1;
@@ -33,13 +33,13 @@ int just_map_matrix(struct matrix* matp, converter fn)
     return 0;
 }
 
-double map_abs_sin_sum(double a, double b)
+double combine_abs_sin_sum(double a, double b)
 {
     return fabs(sin(a + b));
 }
 
-int just_map_matrices(struct matrix* restrict srcp, struct matrix* restrict dstp,
-                      applicator fn)
+int map_matrices(struct matrix* restrict srcp, struct matrix* restrict dstp,
+                 combiner fn)
 {
     int ret = 0;
     if (!srcp || !dstp) return -1;
@@ -65,7 +65,7 @@ struct map_args
 {
     size_t size;
     double* array;
-    converter fn;
+    applicator fn;
 };
 
 static void* map_subarray(void* arg)

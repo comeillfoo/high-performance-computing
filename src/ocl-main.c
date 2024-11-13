@@ -16,7 +16,7 @@
 
 
 static int args_parse(int argc, char* argv[], int* Np);
-static inline bool is_even(double number);
+static inline bool is_even_as_integer(double number);
 static int just_randomize_matrix_uniform(size_t size, double array[size],
                                          double a, double b, unsigned seed);
 
@@ -255,7 +255,7 @@ usage:
     return ret;
 }
 
-static inline bool is_even(double number)
+static inline bool is_even_as_integer(double number)
 {
     return !(((uint_least64_t) number) % 2);
 }

@@ -8,8 +8,7 @@ static inline double random_double_r(double a, double b, unsigned* seedp)
     return a + ((double)rand_r(seedp)) / (((double) RAND_MAX) / (b - a));
 }
 
-int just_generate_random_matrix(struct matrix* matp, double a, double b,
-								unsigned seed)
+int generate_random_matrix(struct matrix* matp, double a, double b, unsigned seed)
 {
     int ret = 0;
     if (!matp) return -1;

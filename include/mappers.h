@@ -4,17 +4,17 @@
 #include <stdlib.h>
 #include "matrix.h"
 
-typedef double (*converter)(double);
-double map_sqrt_exp(double number);
-double map_abs_ctg(double number);
-double map_coth_sqrt(double number);
+typedef double (*applicator)(double);
+double apply_sqrt_exp(double number);
+double apply_abs_ctg(double number);
+double apply_coth_sqrt(double number);
 
-typedef double (*applicator)(double, double);
-double map_abs_sin_sum(double a, double b);
+typedef double (*combiner)(double, double);
+double combine_abs_sin_sum(double a, double b);
 
-int just_map_matrix(struct matrix* matp, converter fn);
-int just_map_matrices(struct matrix* restrict srcp, struct matrix* restrict dstp,
-                      applicator fn);
+int map_matrix(struct matrix* matp, applicator fn);
+int map_matrices(struct matrix* restrict srcp, struct matrix* restrict dstp,
+                 combiner fn);
 
 #ifdef _PTHREAD_H
 int parallel_map_array(size_t size, double array[size], mapper fn,

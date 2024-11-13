@@ -1,8 +1,8 @@
 #ifndef _SORTS_H_
 #define _SORTS_H_
 
-#include <stdlib.h>
+#include "matrix.h"
 
-void sort(size_t size, double array[size]);
+int sort_rows(struct matrix* matp);
 
 #endif // _SORTS_H_

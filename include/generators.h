@@ -16,6 +16,5 @@ static unsigned rand_r(unsigned *seed)
 }
 #endif
 
-int just_generate_random_matrix(struct matrix* matp, double a, double b,
-								unsigned seed);
+int generate_random_matrix(struct matrix* matp, double a, double b, unsigned seed);
 #endif // _GENERATORS_H_

@@ -10,18 +10,19 @@ static inline void swap(uint_least64_t* restrict a,
     *a ^= *b;
 }
 
-static void _gnome_sort(size_t size, double array[size])
+// https://www.geeksforgeeks.org/selection-sort-algorithm-2/
+static int selection_sort(size_t size, double* array)
 {
-    size_t i = 0;
-    while (i < size) {
-        if (i == 0 || array[i] >= array[i - 1]) {
-            ++i;
-            continue;
-        }
-        swap((uint_least64_t*)(array + i),
-             (uint_least64_t*)(array + (i - 1)));
-        --i;
+    if (!array) return -1;
+    for (size_t i = 0; i < size - 1; ++i) {
+        size_t mini = i;
+        for (size_t j = i + 1; j < size; ++j)
+            if (array[j] < array[mini])
+                mini = j;
+
+        swap((uint_least64_t*)(array + i), (uint_least64_t*)(array + mini));
     }
+    return 0;
 }
 
 #ifdef _OPENMP
@@ -35,14 +36,14 @@ static inline void _omp_gnome_sort(size_t size, double array[size],
         {
             for (size_t i = 0; i < lsize; ++i)
                 left[i] = array[i];
-            _gnome_sort(lsize, left);
+            gnome_sort(lsize, left);
         }
 
         #pragma omp section
         {
             for (size_t j = 0; j < rsize; ++j)
                 right[j] = array[j + lsize];
-            _gnome_sort(rsize, right);
+            gnome_sort(rsize, right);
         }
     }
 }
@@ -61,7 +62,7 @@ static void* _gnome_sort_routine(void* args)
     struct _sort_routine_args* sort_args = (struct _sort_routine_args*)args;
     for (size_t i = 0; i < sort_args->size; ++i)
         sort_args->sorted[i] = sort_args->array[i];
-    _gnome_sort(sort_args->size, sort_args->sorted);
+    gnome_sort(sort_args->size, sort_args->sorted);
     return (void*) 0;
 }
 
@@ -84,6 +85,21 @@ static void _pthread_gnome_sort(size_t size, double array[size],
 #endif
 
 #if defined(_OPENMP) || defined(_PTHREAD_H)
+static int gnome_sort(size_t size, double array[size])
+{
+    size_t i = 0;
+    if (!array) return -1;
+    while (i < size) {
+        if (i == 0 || array[i] >= array[i - 1]) {
+            ++i;
+            continue;
+        }
+        swap((uint_least64_t*)(array + i), (uint_least64_t*)(array + (i - 1)));
+        --i;
+    }
+    return 0;
+}
+
 static void _parallel_gnome_sort(size_t size, double array[size])
 {
     const size_t lsize = size / 2;
@@ -121,11 +137,22 @@ static void _parallel_gnome_sort(size_t size, double array[size])
 }
 #endif
 
-void sort(size_t size, double array[size])
+int sort_rows(struct matrix* matp)
 {
-#if defined(_OPENMP) || defined(_PTHREAD_H)
-    _parallel_gnome_sort(size, array);
-#else
-    _gnome_sort(size, array);
-#endif
+    int ret = 0;
+    if (!matp) return -1;
+    for (size_t i = 0; i < matp->rows; ++i) {
+        switch (matp->type) {
+        case MT_VECTOR:
+            ret = selection_sort(matp->cols, matp->as_vector + (i * matp->cols));
+            break;
+        case MT_TABLE:
+            ret = selection_sort(matp->cols, matp->as_table[i]);
+            break;
+        default:
+            break;
+        }
+        if (ret) return ret;
+    }
+    return ret;
 }

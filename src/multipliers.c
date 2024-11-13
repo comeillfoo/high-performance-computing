@@ -1,7 +1,7 @@
 #include "multipliers.h"
 
 
-int just_multiply_matrices(struct matrix* restrict A, struct matrix* restrict B,
+int multiply_matrices(struct matrix* restrict A, struct matrix* restrict B,
                            struct matrix* restrict C)
 {
     int ret = 0;
