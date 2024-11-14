@@ -90,6 +90,38 @@ int map_matrices(struct matrix* restrict srcp, struct matrix* restrict dstp,
         }
     return ret;
 }
+
+int shift_matrices(struct matrix* restrict srcp, struct matrix* restrict dstp,
+                   size_t shift)
+{
+    int ret = 0;
+    if (!srcp || !dstp) return -1;
+    if (srcp->rows != dstp->rows || srcp->cols != dstp->cols)
+        return -1;
+
+    #pragma omp parallel for collapse(2) default(none) shared(srcp, dstp, shift, ret)
+    for (size_t i = 0; i < srcp->rows; ++i)
+        for (size_t j = 0; j < srcp->cols; ++j) {
+            double value = 0.0;
+            if (ret) continue;
+            if (double_matrix_get(srcp, i, j, &value)) {
+                #pragma omp critical
+                {
+                    ret = -1;
+                }
+                continue;
+            }
+
+            if (double_matrix_set(dstp, i, (j + shift) % dstp->cols, value)) {
+                #pragma omp critical
+                {
+                    ret = -1;
+                }
+                continue;
+            }
+        }
+    return ret;
+}
 #else
 int map_matrix(struct matrix* matp, applicator fn)
 {
