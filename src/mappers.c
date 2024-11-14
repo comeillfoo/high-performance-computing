@@ -22,13 +22,14 @@ double combine_abs_sin_sum(double a, double b)
     return fabs(sin(a + b));
 }
 
+
 #ifdef _OPENMP
 int map_matrix(struct matrix* matp, applicator fn)
 {
     int ret = 0;
     if (!matp) return -1;
     #pragma omp parallel for collapse(2) default(none) shared(matp, ret, fn)
-    for (size_t i = 0; i < matp->rows; ++i) {
+    for (size_t i = 0; i < matp->rows; ++i)
         for (size_t j = 0; j < matp->cols; ++j) {
             double value = 0.0;
             if (ret) continue;
@@ -47,7 +48,6 @@ int map_matrix(struct matrix* matp, applicator fn)
                 continue;
             }
         }
-    }
     return ret;
 }
 
@@ -59,16 +59,34 @@ int map_matrices(struct matrix* restrict srcp, struct matrix* restrict dstp,
     if (srcp->rows != dstp->rows || srcp->cols != dstp->cols)
         return -1;
 
+    #pragma omp parallel for collapse(2) default(none) shared(srcp, dstp, ret, fn)
     for (size_t i = 0; i < dstp->rows; ++i)
         for (size_t j = 0; j < dstp->cols; ++j) {
             double a = 0.0;
             double b = 0.0;
-            ret = double_matrix_get(srcp, i, j, &a);
-            if (ret) return ret;
-            ret = double_matrix_get(dstp, i, j, &b);
-            if (ret) return ret;
-            ret = double_matrix_set(dstp, i, j, fn(b, a));
-            if (ret) return ret;
+            if (ret) continue;
+            if (double_matrix_get(srcp, i, j, &a)) {
+                #pragma omp critical
+                {
+                    ret = -1;
+                }
+                continue;
+            }
+            if (double_matrix_get(dstp, i, j, &b)) {
+                #pragma omp critical
+                {
+                    ret = -1;
+                }
+                continue;
+            }
+
+            if (double_matrix_set(dstp, i, j, fn(b, a))) {
+                #pragma omp critical
+                {
+                    ret = -1;
+                }
+                continue;
+            }
         }
     return ret;
 }
