@@ -15,6 +15,8 @@ double combine_abs_sin_sum(double a, double b);
 int map_matrix(struct matrix* matp, applicator fn);
 int map_matrices(struct matrix* restrict srcp, struct matrix* restrict dstp,
                  combiner fn);
+int shift_matrices(struct matrix* restrict srcp, struct matrix* restrict dstp,
+                   size_t shift);
 
 #ifdef _PTHREAD_H
 int parallel_map_array(size_t size, double array[size], mapper fn,

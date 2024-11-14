@@ -127,6 +127,25 @@ int map_matrices(struct matrix* restrict srcp, struct matrix* restrict dstp,
         }
     return ret;
 }
+
+int shift_matrices(struct matrix* restrict srcp, struct matrix* restrict dstp,
+                   size_t shift)
+{
+    int ret = 0;
+    if (!srcp || !dstp) return -1;
+    if (srcp->rows != dstp->rows || srcp->cols != dstp->cols)
+        return -1;
+
+    for (size_t i = 0; i < srcp->rows; ++i)
+        for (size_t j = 0; j < srcp->cols; ++j) {
+            double value = 0.0;
+            ret = double_matrix_get(srcp, i, j, &value);
+            if (ret) return ret;
+            ret = double_matrix_set(dstp, i, (j + shift) % dstp->cols, value);
+            if (ret) return ret;
+        }
+    return ret;
+}
 #endif
 
 #ifdef _PTHREAD_H

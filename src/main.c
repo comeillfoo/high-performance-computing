@@ -48,14 +48,8 @@ int main(int argc, char* argv[])
         // В матрице M2 каждую колонку поочередно сложить с предыдущей
         ret = map_matrix(&M1, apply_coth_sqrt);
         if (ret) goto freeM;
-        for (size_t i = 0; i < M2.rows; ++i) // TODO: paralellize or skip
-            for (size_t j = 0; j < M2.cols; ++j) {
-                double m2 = 0.0;
-                ret = double_matrix_get(&M2, i, j, &m2);
-                if (ret) goto freeM;
-                ret = double_matrix_set(&Mt, i, (j + 1) % M2.cols, m2);
-                if (ret) goto freeM;
-            }
+        ret = shift_matrices(&M2, &Mt, 1);
+        if (ret) goto freeM;
         ret = map_matrices(&Mt, &M2, combine_abs_sin_sum);
         if (ret) goto freeM;
 
