@@ -13,6 +13,10 @@ Sort. B = 4; X = 1 + 24 mod 4 = 1
 
 ## Setup and Info
 
+### OpenMP
+
+Run `omp-main` with `OMP_CANCELLATION=true`.
+
 ### OpenCL
 
 Tools:
