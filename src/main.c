@@ -48,7 +48,7 @@ int main(int argc, char* argv[])
         // В матрице M2 каждую колонку поочередно сложить с предыдущей
         ret = map_matrix(&M1, apply_coth_sqrt);
         if (ret) goto freeM;
-        for (size_t i = 0; i < M2.rows; ++i)
+        for (size_t i = 0; i < M2.rows; ++i) // TODO: paralellize or skip
             for (size_t j = 0; j < M2.cols; ++j) {
                 double m2 = 0.0;
                 ret = double_matrix_get(&M2, i, j, &m2);
