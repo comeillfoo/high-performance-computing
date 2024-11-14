@@ -10,46 +10,7 @@ static inline void swap(uint_least64_t* restrict a,
     *a ^= *b;
 }
 
-// https://www.geeksforgeeks.org/selection-sort-algorithm-2/
-static int selection_sort(size_t size, double* array)
-{
-    if (!array) return -1;
-    for (size_t i = 0; i < size - 1; ++i) {
-        size_t mini = i;
-        for (size_t j = i + 1; j < size; ++j)
-            if (array[j] < array[mini])
-                mini = j;
-
-        swap((uint_least64_t*)(array + i), (uint_least64_t*)(array + mini));
-    }
-    return 0;
-}
-
-#ifdef _OPENMP
-static inline void _omp_gnome_sort(size_t size, double array[size],
-                                   size_t lsize, double left[lsize],
-                                   size_t rsize, double right[rsize])
-{
-    #pragma omp parallel sections
-    {
-        #pragma omp section
-        {
-            for (size_t i = 0; i < lsize; ++i)
-                left[i] = array[i];
-            gnome_sort(lsize, left);
-        }
-
-        #pragma omp section
-        {
-            for (size_t j = 0; j < rsize; ++j)
-                right[j] = array[j + lsize];
-            gnome_sort(rsize, right);
-        }
-    }
-}
-#endif
-
-#ifdef _PTHREAD_H
+#ifdef USE_PTHREAD
 struct _sort_routine_args
 {
     size_t size;
@@ -82,37 +43,51 @@ static void _pthread_gnome_sort(size_t size, double array[size],
     for (size_t i = 0; i < 2; ++i)
         pthread_join(threads_id[i], NULL);
 }
-#endif
-
-#if defined(_OPENMP) || defined(_PTHREAD_H)
-static int gnome_sort(size_t size, double array[size])
+#elif defined(_OPENMP)
+static int selection_sort(size_t size, double* array)
 {
-    size_t i = 0;
     if (!array) return -1;
-    while (i < size) {
-        if (i == 0 || array[i] >= array[i - 1]) {
-            ++i;
-            continue;
-        }
-        swap((uint_least64_t*)(array + i), (uint_least64_t*)(array + (i - 1)));
-        --i;
+    for (size_t i = 0; i < size - 1; ++i) {
+        size_t mini = i;
+        for (size_t j = i + 1; j < size; ++j)
+            if (array[j] < array[mini])
+                mini = j;
+
+        swap((uint_least64_t*)(array + i), (uint_least64_t*)(array + mini));
     }
     return 0;
 }
 
-static void _parallel_gnome_sort(size_t size, double array[size])
+static void parallel_selection_sort(double* array, size_t lsize, double left[lsize],
+                                   size_t rsize, double right[rsize])
+{
+    #pragma omp parallel sections
+    {
+        #pragma omp section
+        {
+            for (size_t i = 0; i < lsize; ++i)
+                left[i] = array[i];
+            selection_sort(lsize, left);
+        }
+
+        #pragma omp section
+        {
+            for (size_t j = 0; j < rsize; ++j)
+                right[j] = array[j + lsize];
+            selection_sort(rsize, right);
+        }
+    }
+}
+
+static void parallel_merge_selection_sort(size_t size, double* array)
 {
     const size_t lsize = size / 2;
     const size_t rsize = size - lsize;
     size_t i = 0, j = 0, k = 0;
     double left[lsize], right[rsize];
-#ifdef _OPENMP
-    _omp_gnome_sort(size, array, lsize, left, rsize, right);
-#elif defined(_PTHREAD_H)
-    _pthread_gnome_sort(size, array, lsize, left, rsize, right);
-#else
-    #error Fatal bug on compiling: without libs should be sequential sort picked
-#endif
+    if (!array) return;
+    parallel_selection_sort(array, lsize, left, rsize, right);
+
     i = 0;
     j = 0;
     while (i < lsize && j < rsize) {
@@ -135,7 +110,41 @@ static void _parallel_gnome_sort(size_t size, double array[size])
         ++j; ++k;
     }
 }
-#endif
+
+int sort_rows(struct matrix* matp)
+{
+    if (!matp) return -1;
+    #pragma omp parallel for default(none) shared(matp)
+    for (size_t i = 0; i < matp->rows; ++i) {
+        switch (matp->type) {
+        case MT_VECTOR:
+            parallel_merge_selection_sort(matp->cols,
+                matp->as_vector + (i * matp->cols));
+            break;
+        case MT_TABLE:
+            parallel_merge_selection_sort(matp->cols, matp->as_table[i]);
+            break;
+        default:
+            break;
+        }
+    }
+    return 0;
+}
+#else
+// https://www.geeksforgeeks.org/selection-sort-algorithm-2/
+static int selection_sort(size_t size, double* array)
+{
+    if (!array) return -1;
+    for (size_t i = 0; i < size - 1; ++i) {
+        size_t mini = i;
+        for (size_t j = i + 1; j < size; ++j)
+            if (array[j] < array[mini])
+                mini = j;
+
+        swap((uint_least64_t*)(array + i), (uint_least64_t*)(array + mini));
+    }
+    return 0;
+}
 
 int sort_rows(struct matrix* matp)
 {
@@ -156,3 +165,5 @@ int sort_rows(struct matrix* matp)
     }
     return ret;
 }
+#endif
+
