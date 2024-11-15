@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # @brief target path
-TARGET='./app'
+TARGET='../main'
 
 # @brief lookup limit
 LIMIT="${1:-11}"
