@@ -1,5 +1,29 @@
 # high-performance-computing
 
+## Methods of measurements
+
+1. Measure scalability while changing task size by changing `N`.
+    + Measure scalability while changing number of threads in OpenMP by changing [OMP_NUM_THREADS](https://www.openmp.org/spec-html/5.0/openmpse50.html).
+
+2. Parallel acceleration and efficiency can be measured by measuring executions times and using next equations:
+    + $S(p) = \frac{V(p)}{V(1)}$ - parallel acceleration.
+    + $E(p) = \frac{S(p)}{p}$ - parallel efficiency, where `p` is number of threads (cores, processes).
+
+3. Efficiency of parallelizing matrices sort. By defining macro `PARALLEL_SORT_ONLY_ROWS` while compiling `sorts.c`. This can be done by assigning `USERCFLAGS` environment variable or setting it in command line while building with `make`.
+
+### OpenMP
+
+4. Change schedule by setting environment variable [OMP_SCHEDULE](https://www.openmp.org/spec-html/5.0/openmpse49.html).
+5. Change chunk size by setting environment variable [OMP_SCHEDULE](https://www.openmp.org/spec-html/5.0/openmpse49.html).
+
+### Pthreads
+
+4. TODO: investigate how to implement fixed size thread pool
+
+### OpenCL
+
+4. Only CPU, cause GPU is impossible to pass to VBox.
+
 ## Parameters
 
 ```
@@ -13,9 +37,13 @@ Sort. B = 4; X = 1 + 24 mod 4 = 1
 
 ## Setup and Info
 
+### Just (single-threaded)
+
+Run `just-main N`, where `N` is the number of rows for `M1` and columns for `M2`. The minimum value is 2.
+
 ### OpenMP
 
-Run `omp-main` with `OMP_CANCELLATION=true`.
+Run `omp-main` with `OMP_CANCELLATION=true`. Change number of threads with `OMP_NUM_THREADS` environment variable.
 
 ### OpenCL
 
@@ -45,44 +73,6 @@ sudo apt install -y \
 Sources:
 
 1. [intel/compute-runtime](https://github.com/intel/compute-runtime)
-
-Theory:
-
-1. [Дизайн OpenCL](http://opencl.ru/design)
-2. [OpenCL Programming model](https://github.com/KhronosGroup/OpenCL-Guide/blob/main/chapters/opencl_programming_model.md)
-3. [OpenCL Book](https://fixstars.github.io/opencl-book/opencl-book/basic-opencl/basic-program-flow.html)
-
-## System Description
-
-- CPU: TODO
-- RAM: TODO
-- Caches: TODO
-
-## Results
-
-- $N_1$: shows the size of M1 when execution time exceeds 10 ms
-- $N_1$: shows the size of M1 when execution time exceeds 5000 ms
-
-### Plain stage results
-
-- $N_1$: 438
-- $N_2$: 10451
-
-### OpenMP stage results
-
-- $N_1$: 2
-- $N_2$: 18607
-
-### POSIX Threads stage results
-
-For 4 threads:
-
-- $N_1$: 2
-- $N_2$: 19900
-
-### OpenCL stage results
-
-For `local_size==4`:
-
-- $N_1$: 64
-- $N_2$: 10560
+2. [Дизайн OpenCL](http://opencl.ru/design)
+3. [OpenCL Programming model](https://github.com/KhronosGroup/OpenCL-Guide/blob/main/chapters/opencl_programming_model.md)
+4. [OpenCL Book](https://fixstars.github.io/opencl-book/opencl-book/basic-opencl/basic-program-flow.html)

@@ -16,7 +16,7 @@ int merge_matrices(struct matrix* restrict srcp, struct matrix* restrict dstp,
     if (!srcp || !dstp) return -1;
     const size_t rows = MIN(srcp->rows, dstp->rows);
     const size_t cols = MIN(srcp->cols, dstp->cols);
-    #pragma omp parallel for collapse(2) default(none) shared(srcp, dstp, ret, fn, rows, cols)
+    #pragma omp parallel for collapse(2) default(none) shared(srcp, dstp, ret, fn, rows, cols) schedule(runtime)
     for (size_t i = 0; i < rows; ++i)
         for (size_t j = 0; j < cols; ++j) {
             double a = 0.0;

@@ -10,7 +10,7 @@ int multiply_matrices(struct matrix* restrict A, struct matrix* restrict B,
         || B->cols != C->cols)
         return -1;
     // A[a][b] * B[b][c] = C[a][c]
-    #pragma omp parallel for collapse(2) default(none) shared(A, B, C, ret)
+    #pragma omp parallel for collapse(2) default(none) shared(A, B, C, ret) schedule(runtime)
     for (size_t i = 0; i < A->rows; ++i)
         for (size_t j = 0; j < B->cols; ++j) {
             double c = 0.0;

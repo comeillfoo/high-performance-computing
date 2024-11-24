@@ -18,7 +18,7 @@ int reduce(struct matrix* matp, double* reduction)
     double X = 0.0;
     if (!matp || !reduction) return -1;
 
-    #pragma omp parallel for default(none) shared(matp, ret) reduction(+:X)
+    #pragma omp parallel for default(none) shared(matp, ret) reduction(+:X) schedule(runtime)
     for (size_t i = 0; i < matp->rows; ++i) {
         double min = 0.0;
         if (ret) continue;

@@ -13,6 +13,7 @@ KERNELS=kernel.clbin
 TOOLS=$(OCLWC)
 
 CFLAGS=-O3 -Wall -Werror -pedantic -I$(INCDIR)
+CFLAGS+=$(USERCFLAGS)
 
 LIBS=-lm
 OMP_LIBS=$(LIBS) -lgomp
@@ -35,6 +36,11 @@ just-main: $(addsuffix .o,$(addprefix $(BUILDDIR)/,$(TARGETS)))
 omp-main: CFLAGS += -fopenmp
 omp-main: $(addsuffix .o,$(addprefix $(BUILDDIR)/,$(TARGETS)))
 	$(LD) $(LDFLAGS) $^ -o $@ $(OMP_LIBS)
+
+pt-main: CFLAGS += -pthread -DUSE_PTHREAD
+pt-main: LDFLAGS += -pthread
+pt-main: $(addsuffix .o,$(addprefix $(BUILDDIR)/,$(TARGETS)))
+	$(LD) $(LDFLAGS) $^ -o $@ $(LIBS)
 
 ocl-main: CFLAGS += -D CL_TARGET_OPENCL_VERSION=300
 ocl-main: $(addsuffix .o,$(addprefix $(BUILDDIR)/,$(OCL_TARGETS))) $(TOOLS) $(KERNELS)
@@ -67,8 +73,11 @@ just-clean:
 omp-clean:
 	rm -f omp-main
 
-clean: clean-build just-clean omp-clean
+pt-clean:
+	rm -f pt-main
+
+clean: clean-build just-clean omp-clean pt-clean
 	rm -f $(OCLWC)
 	rm -f $(KERNELS)
 
-.PHONY: clean clean-build just-clean omp-clean
+.PHONY: clean clean-build just-clean omp-clean pt-clean

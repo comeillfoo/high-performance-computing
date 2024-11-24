@@ -28,7 +28,7 @@ int map_matrix(struct matrix* matp, applicator fn)
 {
     int ret = 0;
     if (!matp) return -1;
-    #pragma omp parallel for collapse(2) default(none) shared(matp, ret, fn)
+    #pragma omp parallel for collapse(2) default(none) shared(matp, ret, fn) schedule(runtime)
     for (size_t i = 0; i < matp->rows; ++i)
         for (size_t j = 0; j < matp->cols; ++j) {
             double value = 0.0;
@@ -59,7 +59,7 @@ int map_matrices(struct matrix* restrict srcp, struct matrix* restrict dstp,
     if (srcp->rows != dstp->rows || srcp->cols != dstp->cols)
         return -1;
 
-    #pragma omp parallel for collapse(2) default(none) shared(srcp, dstp, ret, fn)
+    #pragma omp parallel for collapse(2) default(none) shared(srcp, dstp, ret, fn) schedule(runtime)
     for (size_t i = 0; i < dstp->rows; ++i)
         for (size_t j = 0; j < dstp->cols; ++j) {
             double a = 0.0;
@@ -99,7 +99,7 @@ int shift_matrices(struct matrix* restrict srcp, struct matrix* restrict dstp,
     if (srcp->rows != dstp->rows || srcp->cols != dstp->cols)
         return -1;
 
-    #pragma omp parallel for collapse(2) default(none) shared(srcp, dstp, shift, ret)
+    #pragma omp parallel for collapse(2) default(none) shared(srcp, dstp, shift, ret) schedule(runtime)
     for (size_t i = 0; i < srcp->rows; ++i)
         for (size_t j = 0; j < srcp->cols; ++j) {
             double value = 0.0;
