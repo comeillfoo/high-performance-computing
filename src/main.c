@@ -8,6 +8,7 @@
 #include "multipliers.h"
 #include "sorts.h"
 #include "reducers.h"
+#include "futils.h"
 
 
 static int args_parse(int argc, char* argv[], int* Np);
@@ -16,6 +17,8 @@ int main(int argc, char* argv[])
 {
     const double A = 400.0; // А = Ф(8) * И(5) * О(10)
     int N, ret = 0;
+    struct tstamp T1, T2;
+    long delta_ms = 0;
 
     ret = args_parse(argc, argv, &N);
     if (ret) goto exit;
@@ -36,6 +39,8 @@ int main(int argc, char* argv[])
     ret = double_matrix_create(N, N, MT_TABLE, &M);
     if (ret) goto freeMt;
 
+    ret = stamp_time(&T1);
+    if (ret) goto freeM;
     for (size_t i = 0; i < 100; ++i) {
         // Generate. Сформировать матрицу M1[N][N / 2], заполнить uniform(1, A).
         // Сформировать матрицу M2[N / 2][N], заполнить uniform(A, 10.0 * A).
@@ -74,6 +79,10 @@ int main(int argc, char* argv[])
         if (ret) goto freeM;
         printf("X = %lf\n", X);
     }
+    ret = stamp_time(&T2);
+    if (ret) goto freeM;
+    delta_ms = stamps_diff_ms(T1, T2);
+    printf("N=%d. Milliseconds passed: %ld\n", N, delta_ms);
 
 freeM:
     double_matrix_destroy(M);
@@ -102,7 +111,7 @@ static int args_parse(int argc, char* argv[], int* Np)
     *Np = N;
     return 0;
 usage:
-    printf("Usage: %s N\n\nArguments:\n    N    size of matrices, default 2\n",
+    printf("Usage: %s N\n\nArguments:\n    N    size of matrices, minimum 2\n",
            argv[0]);
     return ret;
 }

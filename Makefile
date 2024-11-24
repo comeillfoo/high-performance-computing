@@ -6,7 +6,7 @@ INCDIR=include
 SRCDIR=src
 BUILDDIR=build
 
-TARGETS=main matrix generators mappers mergers multipliers sorts reducers
+TARGETS=main matrix generators mappers mergers multipliers sorts reducers futils
 OCL_TARGETS=ocl-main mappers sorts oclw futils
 
 KERNELS=kernel.clbin
@@ -58,10 +58,17 @@ $(BUILDDIR)/tools:
 $(BUILDDIR)/tools/%.o: $(SRCDIR)/tools/%.c $(BUILDDIR)/tools
 	$(CC) -c $(CFLAGS) $< -o $@
 
-clean:
+clean-build:
 	rm -rf $(BUILDDIR)
-	rm -f just-main omp-main ocl-main
+
+just-clean:
+	rm -f just-main
+
+omp-clean:
+	rm -f omp-main
+
+clean: clean-build just-clean omp-clean
 	rm -f $(OCLWC)
 	rm -f $(KERNELS)
 
-.PHONY: clean
+.PHONY: clean clean-build just-clean omp-clean

@@ -20,6 +20,9 @@ def args_parser() -> argparse.ArgumentParser:
     p.add_argument('-e', '--error', type=float, default=def_error,
                    help='Acceptable error between actual and expected, ' \
                     f'default {def_error}')
+    def_low = 2
+    p.add_argument('-L', '--low', type=uint_gt2, default=def_low,
+                   help=f'Lower bound for N to test, default {def_low}')
     def_high = 2
     p.add_argument('-H', '--high', type=uint_gt2, default=def_high,
                    help=f'High bound for N to test, default {def_high}')
@@ -45,7 +48,8 @@ def run(executable: pathlib.Path, N: int) -> list[float]:
     pstate = sp.run([path, str(N)], stdout=sp.PIPE)
     if pstate.returncode != 0:
         return []
-    return list(map(convert, pstate.stdout.decode('utf-8').strip().split('\n')))
+    lines = pstate.stdout.decode('utf-8').strip().split('\n')[:-1]
+    return list(map(convert, lines))
 
 
 def assert_diff(expected: list[float], actual: list[float], err: float) -> bool:
@@ -72,10 +76,10 @@ def main() -> int:
         print('Bail out!')
         return 1
 
-    tests = args.high + 1 - 2
+    tests = args.high + 1 - args.low
     print(f'1..{tests}')
-    for n in range(2, args.high + 1):
-        test_nr = n - 1
+    for n in range(args.low, args.high + 1):
+        test_nr = n - args.low + 1
         expected_samples = run(args.sample, n)
         is_succeed = True
         for benchmark in benchmarks:

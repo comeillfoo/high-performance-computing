@@ -1,5 +1,27 @@
 #include "futils.h"
 
+
+int stamp_time(struct tstamp* t)
+{
+    if (!t) return -1;
+#ifdef _OPENMP
+    t->seconds = omp_get_wtime();
+    return 0;
+#else
+    return gettimeofday(&(t->tval), NULL);
+#endif
+}
+
+long stamps_diff_ms(struct tstamp t1, struct tstamp t2)
+{
+#ifdef _OPENMP
+    return (long)((t2.seconds - t1.seconds) * 1000.0);
+#else
+    return (t2.tval.tv_sec - t1.tval.tv_sec) * 1000.0
+        + (t2.tval.tv_usec - t1.tval.tv_usec) / 1000.0;
+#endif
+}
+
 ssize_t fget_size_verbose(FILE* stream)
 {
     ssize_t ret = -1;
