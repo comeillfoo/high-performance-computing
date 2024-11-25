@@ -7,6 +7,7 @@ SRCDIR=src
 BUILDDIR=build
 
 TARGETS=main matrix generators mappers mergers multipliers sorts reducers futils
+PT_TARGETS=$(TARGETS) ptpool
 OCL_TARGETS=ocl-main mappers sorts oclw futils
 
 KERNELS=kernel.clbin
@@ -39,7 +40,7 @@ omp-main: $(addsuffix .o,$(addprefix $(BUILDDIR)/,$(TARGETS)))
 
 pt-main: CFLAGS += -pthread -DUSE_PTHREAD
 pt-main: LDFLAGS += -pthread
-pt-main: $(addsuffix .o,$(addprefix $(BUILDDIR)/,$(TARGETS)))
+pt-main: $(addsuffix .o,$(addprefix $(BUILDDIR)/,$(PT_TARGETS)))
 	$(LD) $(LDFLAGS) $^ -o $@ $(LIBS)
 
 ocl-main: CFLAGS += -D CL_TARGET_OPENCL_VERSION=300

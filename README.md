@@ -45,6 +45,12 @@ Run `just-main N`, where `N` is the number of rows for `M1` and columns for `M2`
 
 Run `omp-main` with `OMP_CANCELLATION=true`. Change number of threads with `OMP_NUM_THREADS` environment variable.
 
+### Pthreads
+
+Sources:
+
+1. [Thread Pool in C | John's Blog](https://nachtimwald.com/2019/04/12/thread-pool-in-c/)
+
 ### OpenCL
 
 Tools:
