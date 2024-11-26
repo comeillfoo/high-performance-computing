@@ -4,6 +4,7 @@
 
 1. Measure scalability while changing task size by changing `N`.
     + Measure scalability while changing number of threads in OpenMP by changing [OMP_NUM_THREADS](https://www.openmp.org/spec-html/5.0/openmpse50.html).
+    + Measure scalability while changing number of threads for PThreads by changing `PT_NUM_THREADS` environment variable, default 1.
 
 2. Parallel acceleration and efficiency can be measured by measuring executions times and using next equations:
     + $S(p) = \frac{V(p)}{V(1)}$ - parallel acceleration.

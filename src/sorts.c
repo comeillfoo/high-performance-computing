@@ -26,7 +26,8 @@ static int selection_sort(size_t size, double* array)
 }
 
 #ifdef USE_PTHREAD
-#include <pthread.h>
+#include "ptpool.h"
+
 
 #ifndef PARALLEL_SORT_ONLY_ROWS
 struct _halfsort_args
@@ -47,27 +48,17 @@ static void* _halfsort_routine(void* args)
 static int parallel_selection_sort(double* array, size_t lsize, double left[lsize],
                                    size_t rsize, double right[rsize])
 {
-    int ret = 0;
-    pthread_t threads_id[2];
-    struct _halfsort_args threads_args[] = {
+    struct _halfsort_args tasks_args[] = {
         { lsize, left, array },
         { rsize, right, array + lsize }
     };
     for (size_t i = 0; i < 2; ++i) {
-        if (!pthread_create(&threads_id[i], NULL, _halfsort_routine,
-                            (void*)(&threads_args[i])))
-            continue;
-        for (size_t j = 0; j < i; ++j)
-            pthread_cancel(threads_id[j]);
-        return -1;
+        if (!ptpool_enqueue_task(_halfsort_routine, (void*)(&tasks_args[i])))
+            return -1;
     }
 
-    for (size_t i = 0; i < 2; ++i) {
-        void* thread_ret;
-        if (pthread_join(threads_id[i], &thread_ret) || ((intptr_t) thread_ret))
-            ret = -1;
-    }
-    return ret;
+    ptpool_wait();
+    return 0;
 }
 
 static int parallel_merge_selection_sort(size_t size, double* array)
@@ -140,27 +131,17 @@ static void* _rowsort_routine(void* args)
 
 int sort_rows(struct matrix* matp)
 {
-    int ret = 0;
     if (!matp) return -1;
-    pthread_t threads_id[matp->rows];
-    struct _rowsort_args threads_args[matp->rows];
+    struct _rowsort_args tasks_args[matp->rows];
     for (size_t i = 0; i < matp->rows; ++i) {
-        threads_args[i].matp = matp;
-        threads_args[i].row = i;
-        if (!pthread_create(&threads_id[i], NULL, _rowsort_routine,
-                            (void*)(&threads_args[i])))
-            continue;
-        for (size_t j = 0; j < i; ++j)
-            pthread_cancel(threads_id[j]);
-        return -1;
+        tasks_args[i].matp = matp;
+        tasks_args[i].row = i;
+        if (!ptpool_enqueue_task(_rowsort_routine, (void*)(&tasks_args[i])))
+            return -1;
     }
 
-    for (size_t i = 0; i < matp->rows; ++i) {
-        void* thread_ret;
-        if (pthread_join(threads_id[i], &thread_ret) || ((intptr_t) thread_ret))
-            ret = -1;
-    }
-    return ret;
+    ptpool_wait();
+    return 0;
 }
 #elif defined(_OPENMP)
 #ifndef PARALLEL_SORT_ONLY_ROWS

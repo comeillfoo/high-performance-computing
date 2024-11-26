@@ -13,20 +13,19 @@ struct ptpool_task {
 };
 
 struct ptpool {
-    struct ptpool_task* head;
-    struct ptpool_task* tail;
-    pthread_mutex_t task_lock;
-    pthread_cond_t if_new_task;
-    pthread_cond_t if_all_idle;
-    size_t busy_workers;
-    size_t workers_alive;
+    struct ptpool_task* head;   // work_first
+    struct ptpool_task* tail;   // work_last
+    pthread_mutex_t task_lock;  // work_mutex
+    pthread_cond_t if_new_task; // work_cond
+    pthread_cond_t if_all_idle; // working_cond
+    size_t busy_workers;        // working_cnt
+    size_t workers_alive;       // thread_cnt
     bool stop;
 };
 
-struct ptpool* ptpool_create(size_t workers);
-void ptpool_destroy(struct ptpool* pool);
-bool ptpool_enqueue_task(struct ptpool* pool, ptpool_routine* routine,
-                         void* args);
-void ptpool_wait(struct ptpool* pool);
+int ptpool_create(size_t workers);
+void ptpool_destroy();
+bool ptpool_enqueue_task(ptpool_routine* routine, void* args);
+void ptpool_wait();
 
 #endif // _PTPOOL_H_

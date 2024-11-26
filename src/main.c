@@ -12,6 +12,8 @@
 
 
 static int args_parse(int argc, char* argv[], int* Np);
+static int library_init();
+static int library_exit();
 
 int main(int argc, char* argv[])
 {
@@ -23,9 +25,12 @@ int main(int argc, char* argv[])
     ret = args_parse(argc, argv, &N);
     if (ret) goto exit;
 
+    ret = library_init();
+    if (ret) goto exit;
+
     struct matrix M1 = {0};
     ret = double_matrix_create(N, N / 2, MT_TABLE, &M1);
-    if (ret) goto exit;
+    if (ret) goto libexit;
 
     struct matrix M2 = {0};
     ret = double_matrix_create(N / 2, N, MT_TABLE, &M2);
@@ -92,6 +97,8 @@ freeM2:
     double_matrix_destroy(M2);
 freeM1:
     double_matrix_destroy(M1);
+libexit:
+    if (library_exit()) ret = -1;
 exit:
     return ret;
 }
@@ -115,3 +122,39 @@ usage:
            argv[0]);
     return ret;
 }
+
+#ifdef USE_PTHREAD
+#include "ptpool.h"
+#include <stdlib.h>
+#include <limits.h>
+
+
+static int library_init()
+{
+    size_t workers = 2;
+    const char* raw_value = getenv("PT_NUM_THREADS");
+    if (raw_value) {
+        workers = strtoul(raw_value, NULL, 10);
+        workers = (workers == ULONG_MAX)? 2 : workers;
+    }
+    int ret = ptpool_create(workers);
+    printf("Create fixed size thread pool[%zu]: %d\n", workers, ret);
+    return ret;
+}
+
+static int library_exit()
+{
+    ptpool_destroy();
+    return 0;
+}
+#else
+static int library_init()
+{
+    return 0;
+}
+
+static int library_exit()
+{
+    return 0;
+}
+#endif
