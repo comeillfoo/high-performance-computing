@@ -27,8 +27,6 @@ static int selection_sort(size_t size, double* array)
 
 #ifdef USE_PTHREAD
 #include "ptpool.h"
-
-
 extern struct ptpool* pool;
 
 #ifndef PARALLEL_SORT_ONLY_ROWS
@@ -61,10 +59,11 @@ static int parallel_selection_sort(double* array, size_t lsize, double left[lsiz
     for (size_t i = 0; i < 2; ++i) {
         if (!ptpool_enqueue_task(halfsort_pool, _halfsort_routine,
                                  (void*)(&tasks_args[i])))
-            return -1;
+            goto destroy;
     }
 
     ptpool_wait(halfsort_pool);
+destroy:
     ptpool_destroy(halfsort_pool);
     return 0;
 }
@@ -144,7 +143,7 @@ int sort_rows(struct matrix* matp)
     for (size_t i = 0; i < matp->rows; ++i) {
         tasks_args[i].matp = matp;
         tasks_args[i].row = i;
-        if (!ptpool_enqueue_task(pool, _rowsort_routine, (void*)(&tasks_args[i])))
+        if (!ptpool_enqueue_task(pool, _rowsort_routine, &tasks_args[i]))
             return -1;
     }
 

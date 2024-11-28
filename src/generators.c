@@ -4,24 +4,77 @@
 #include <time.h>
 
 
-static inline double random_double_r(double a, double b, unsigned* seedp)
+static inline double random_double_r(double a, double b, unsigned int* seedp)
 {
     return a + ((double)rand_r(seedp)) / (((double) RAND_MAX) / (b - a));
 }
 
-#ifdef _OPENMP
+#ifdef USE_PTHREAD
+#include <stdint.h>
+#include "ptpool.h"
+extern struct ptpool* pool;
+
+struct _randomize_vec_args
+{
+    struct matrix* matp;
+    size_t row;
+    unsigned int* seedp;
+    double a;
+    double b;
+};
+
+static void* _randomize_vec_routine(void* args)
+{
+    struct _randomize_vec_args* targs = (struct _randomize_vec_args*)args;
+    double a = targs->a;
+    double b = targs->b;
+    for (size_t j = 0; j < targs->matp->cols; ++j) {
+        if (double_matrix_set(targs->matp, targs->row, j, random_double_r(a, b,
+                              targs->seedp)))
+            return (void*) ((intptr_t) -1);
+    }
+
+    return (void*) ((intptr_t) 0);
+}
+
+int generate_random_matrix(struct matrix* matp, double a, double b,
+                           unsigned int seed)
+{
+    if (!matp) return -1;
+    struct _randomize_vec_args tasks_args[matp->rows];
+    unsigned int seeds[pool->workers_alive];
+    seeds[0] = seed;
+    for (size_t i = 1; i < pool->workers_alive; ++i)
+        seeds[i] = time(NULL); // that may be unsafe way
+
+
+    for (size_t i = 0; i < matp->rows; ++i) {
+        tasks_args[i].matp = matp;
+        tasks_args[i].row = i;
+        tasks_args[i].seedp = &seeds[(i % pool->workers_alive)];
+        tasks_args[i].a = a;
+        tasks_args[i].b = b;
+        if (!ptpool_enqueue_task(pool, _randomize_vec_routine, &tasks_args[i]))
+            return -1;
+    }
+
+    ptpool_wait(pool);
+    return 0;
+}
+#elif defined(_OPENMP)
 #include <omp.h>
-int generate_random_matrix(struct matrix* matp, double a, double b, unsigned seed)
+int generate_random_matrix(struct matrix* matp, double a, double b,
+                           unsigned int seed)
 {
     int ret = 0;
     if (!matp) return -1;
-    unsigned* seeds = NULL;
+    unsigned int* seeds = NULL;
 
     #pragma omp parallel default(none) shared(matp, seeds, ret, a, b, seed)
     {
         #pragma omp single
         {
-            seeds = malloc(sizeof(unsigned) * omp_get_num_threads());
+            seeds = malloc(sizeof(unsigned int) * omp_get_num_threads());
             if (seeds) {
                 seeds[0] = seed;
                 for (size_t i = 1; i < omp_get_num_threads(); ++i)
@@ -38,8 +91,8 @@ int generate_random_matrix(struct matrix* matp, double a, double b, unsigned see
         #pragma omp for
         for (size_t i = 0; i < matp->rows; ++i)
             for (size_t j = 0; j < matp->cols; ++j) {
-                int lret = double_matrix_set(matp, i, j,
-                                             random_double_r(a, b, &seed));
+                int lret = double_matrix_set(matp, i, j, random_double_r(a, b,
+                    &seeds[omp_get_thread_num()]));
                 if (lret) {
                     #pragma omp critical
                     {
@@ -57,7 +110,8 @@ int generate_random_matrix(struct matrix* matp, double a, double b, unsigned see
     return ret;
 }
 #else
-int generate_random_matrix(struct matrix* matp, double a, double b, unsigned seed)
+int generate_random_matrix(struct matrix* matp, double a, double b,
+                           unsigned int seed)
 {
     int ret = 0;
     if (!matp) return -1;

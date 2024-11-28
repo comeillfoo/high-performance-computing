@@ -6,7 +6,7 @@
 
 #ifndef __GNUC__
 // here we assume that unsigned is 32bit integer
-static unsigned rand_r(unsigned *seed)
+static unsigned int rand_r(unsigned int *seed)
 {
 	(*seed) ^= (*seed) >> 11;
 	(*seed) ^= (*seed) << 7 & 0x9D2C5680;
@@ -16,5 +16,6 @@ static unsigned rand_r(unsigned *seed)
 }
 #endif
 
-int generate_random_matrix(struct matrix* matp, double a, double b, unsigned seed);
+int generate_random_matrix(struct matrix* matp, double a, double b,
+						   unsigned int seed);
 #endif // _GENERATORS_H_
