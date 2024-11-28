@@ -22,8 +22,149 @@ double combine_abs_sin_sum(double a, double b)
     return fabs(sin(a + b));
 }
 
+#ifdef USE_PTHREAD
+#include <stdint.h>
+#include "ptpool.h"
+extern struct ptpool* pool;
 
-#ifdef _OPENMP
+struct _map_element_args
+{
+    struct matrix* matp;
+    size_t row;
+    size_t col;
+    applicator fn;
+};
+
+static void* _map_element_routine(void* args)
+{
+    struct _map_element_args* targs = (struct _map_element_args*)args;
+    double value = 0.0;
+    if (double_matrix_get(targs->matp, targs->row, targs->col, &value))
+        return (void*) ((intptr_t) -1);
+    if (double_matrix_set(targs->matp, targs->row, targs->col, targs->fn(value)))
+        return (void*) ((intptr_t) -1);
+    return (void*) ((intptr_t) 0);
+}
+
+int map_matrix(struct matrix* matp, applicator fn)
+{
+    if (!matp) return -1;
+    size_t k = 0;
+    struct _map_element_args tasks_args[matp->rows * matp->cols];
+    for (size_t i = 0; i < matp->rows; ++i)
+        for (size_t j = 0; j < matp->cols; ++j) {
+            tasks_args[k].matp = matp;
+            tasks_args[k].row = i;
+            tasks_args[k].col = j;
+            tasks_args[k].fn = fn;
+            if (!ptpool_enqueue_task(pool, _map_element_routine, &tasks_args[k]))
+                return -1;
+            k++;
+        }
+
+    ptpool_wait(pool);
+    return 0;
+}
+
+struct _map_matrices_args
+{
+    struct matrix* srcp;
+    struct matrix* dstp;
+    size_t row;
+    size_t col;
+    combiner fn;
+};
+
+static void* _map_matrices_routine(void* args)
+{
+    struct _map_matrices_args* targs = (struct _map_matrices_args*)args;
+    double a = 0.0;
+    double b = 0.0;
+    if (double_matrix_get(targs->srcp, targs->row, targs->col, &a))
+        return (void*) ((intptr_t) -1);
+    if (double_matrix_get(targs->dstp, targs->row, targs->col, &b))
+        return (void*) ((intptr_t) -1);
+    if (double_matrix_set(targs->dstp, targs->row, targs->col, targs->fn(b, a)))
+        return (void*) ((intptr_t) -1);
+
+    return (void*) ((intptr_t) 0);
+}
+
+int map_matrices(struct matrix* restrict srcp, struct matrix* restrict dstp,
+                 combiner fn)
+{
+    if (!srcp || !dstp) return -1;
+    if (srcp->rows != dstp->rows || srcp->cols != dstp->cols)
+        return -1;
+
+    size_t k = 0;
+    struct _map_matrices_args tasks_args[dstp->rows * dstp->cols];
+    for (size_t i = 0; i < dstp->rows; ++i)
+        for (size_t j = 0; j < dstp->cols; ++j) {
+            tasks_args[k].srcp = srcp;
+            tasks_args[k].dstp = dstp;
+            tasks_args[k].row = i;
+            tasks_args[k].col = j;
+            tasks_args[k].fn = fn;
+            if (!ptpool_enqueue_task(pool, _map_matrices_routine, &tasks_args[k]))
+                return -1;
+            k++;
+        }
+
+    ptpool_wait(pool);
+    return 0;
+}
+
+struct _shift_matrices_args
+{
+    struct matrix* srcp;
+    struct matrix* dstp;
+    size_t row;
+    size_t col;
+    size_t shift;
+};
+
+static void* _shift_matrices_routine(void* args)
+{
+    struct _shift_matrices_args* targs = (struct _shift_matrices_args*)args;
+    size_t i = targs->row;
+    size_t j = targs->col;
+    size_t shift = targs->shift;
+    size_t cols = targs->dstp->cols;
+    double value = 0.0;
+    if (double_matrix_get(targs->srcp, i, j, &value))
+        return (void*) ((intptr_t) -1);
+
+    if (double_matrix_set(targs->dstp, i, (j + shift) % cols, value))
+        return (void*) ((intptr_t) -1);
+    return (void*) ((intptr_t) 0);
+}
+
+int shift_matrices(struct matrix* restrict srcp, struct matrix* restrict dstp,
+                   size_t shift)
+{
+    if (!srcp || !dstp) return -1;
+    if (srcp->rows != dstp->rows || srcp->cols != dstp->cols)
+        return -1;
+
+    size_t k = 0;
+    struct _shift_matrices_args tasks_args[srcp->rows * srcp->cols];
+    for (size_t i = 0; i < srcp->rows; ++i)
+        for (size_t j = 0; j < srcp->cols; ++j) {
+            tasks_args[k].srcp = srcp;
+            tasks_args[k].dstp = dstp;
+            tasks_args[k].row = i;
+            tasks_args[k].col = j;
+            tasks_args[k].shift = shift;
+            if (!ptpool_enqueue_task(pool, _shift_matrices_routine, &tasks_args[k]))
+                return -1;
+            k++;
+        }
+
+    ptpool_wait(pool);
+    return 0;
+}
+#elif defined(_OPENMP)
 int map_matrix(struct matrix* matp, applicator fn)
 {
     int ret = 0;
@@ -176,53 +317,6 @@ int shift_matrices(struct matrix* restrict srcp, struct matrix* restrict dstp,
             ret = double_matrix_set(dstp, i, (j + shift) % dstp->cols, value);
             if (ret) return ret;
         }
-    return ret;
-}
-#endif
-
-#ifdef _PTHREAD_H
-struct map_args
-{
-    size_t size;
-    double* array;
-    applicator fn;
-};
-
-static void* map_subarray(void* arg)
-{
-    struct map_args* args = (struct map_args*) arg;
-    for (size_t i = 0; i < args->size; ++i)
-        args->array[i] = args->fn(args->array[i]);
-    return 0;
-}
-
-int parallel_map_array(size_t size, double array[size], mapper fn,
-                       size_t threads)
-{
-    int ret = 0;
-    pthread_t threads_id[threads];
-    struct map_args threads_args[threads];
-    const size_t subsize = size / threads;
-    const size_t rem = size % threads;
-    for (size_t i = 0; i < threads; ++i) {
-        threads_args[i].fn = fn;
-        threads_args[i].size = subsize + ((i < rem) ? 1 : 0);
-        threads_args[i].array = (i > 0)
-            ? (threads_args[i - 1].array + threads_args[i - 1].size)
-            : array;
-        ret = pthread_create(&threads_id[i], NULL, map_subarray,
-                       (void*)&threads_args[i]);
-        if (ret) return ret;
-    }
-
-    for (size_t i = 0; i < threads; ++i) {
-        int thread_ret = 0;
-        ret = pthread_join(threads_id[i], (void**)&thread_ret);
-        if (ret) break;
-        ret = thread_ret;
-        if (ret) break;
-    }
-
     return ret;
 }
 #endif

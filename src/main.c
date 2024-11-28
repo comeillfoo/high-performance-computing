@@ -87,7 +87,7 @@ int main(int argc, char* argv[])
     ret = stamp_time(&T2);
     if (ret) goto freeM;
     delta_ms = stamps_diff_ms(T1, T2);
-    printf("N=%d. Milliseconds passed: %ld\n", N, delta_ms);
+    printf("N = %d. Milliseconds passed: %ld\n", N, delta_ms);
 
 freeM:
     double_matrix_destroy(M);
