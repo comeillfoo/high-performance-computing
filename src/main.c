@@ -129,6 +129,9 @@ usage:
 #include <limits.h>
 
 
+struct ptpool* pool = NULL;
+
+
 static int library_init()
 {
     size_t workers = 2;
@@ -137,14 +140,15 @@ static int library_init()
         workers = strtoul(raw_value, NULL, 10);
         workers = (workers == ULONG_MAX)? 2 : workers;
     }
-    int ret = ptpool_create(workers);
-    printf("Create fixed size thread pool[%zu]: %d\n", workers, ret);
-    return ret;
+    pool = ptpool_create(workers);
+    if (!pool)
+        return -1;
+    return 0;
 }
 
 static int library_exit()
 {
-    ptpool_destroy();
+    ptpool_destroy(pool);
     return 0;
 }
 #else

@@ -3,9 +3,6 @@
 #include <stdlib.h>
 
 
-static struct ptpool* pool = NULL;
-
-
 static struct ptpool_task* ptpool_task_create(ptpool_routine* routine, void* args)
 {
     struct ptpool_task* task = NULL;
@@ -78,12 +75,13 @@ static void* ptpool_worker_routine(void* args)
 }
 
 
-int ptpool_create(size_t workers)
+struct ptpool* ptpool_create(size_t workers)
 {
-    if (0 == workers) return -1;
+    struct ptpool* pool = NULL;
+    if (0 == workers) return NULL;
 
     pool = malloc(sizeof(*pool));
-    if (!pool) return -1;
+    if (!pool) return NULL;
 
     pthread_t tids[workers];
     pool->workers_alive = workers;
@@ -111,7 +109,7 @@ int ptpool_create(size_t workers)
         goto err_workers;
     }
 
-    return 0;
+    return pool;
 err_workers:
     pthread_cond_destroy(&(pool->if_all_idle));
 err_if_all_idle:
@@ -120,11 +118,10 @@ err_if_new_task:
     pthread_mutex_destroy(&(pool->task_lock));
 err_task_lock:
     free(pool);
-    pool = NULL;
-    return -1;
+    return NULL;
 }
 
-void ptpool_wait()
+void ptpool_wait(struct ptpool* pool)
 {
     if (!pool) return;
 
@@ -140,7 +137,7 @@ void ptpool_wait()
     pthread_mutex_unlock(&(pool->task_lock));
 }
 
-void ptpool_destroy()
+void ptpool_destroy(struct ptpool* pool)
 {
     struct ptpool_task* it = NULL;
     if (!pool) return;
@@ -158,7 +155,7 @@ void ptpool_destroy()
     pthread_cond_broadcast(&(pool->if_new_task));
     pthread_mutex_unlock(&(pool->task_lock));
 
-    ptpool_wait();
+    ptpool_wait(pool);
 
     pthread_cond_destroy(&(pool->if_all_idle));
     pthread_cond_destroy(&(pool->if_new_task));
@@ -167,7 +164,8 @@ void ptpool_destroy()
     pool = NULL;
 }
 
-bool ptpool_enqueue_task(ptpool_routine* routine, void* args)
+bool ptpool_enqueue_task(struct ptpool* pool, ptpool_routine* routine,
+                         void* args)
 {
     struct ptpool_task* task = NULL;
     if (!pool) return false;

@@ -23,9 +23,10 @@ struct ptpool {
     bool stop;
 };
 
-int ptpool_create(size_t workers);
-void ptpool_destroy();
-bool ptpool_enqueue_task(ptpool_routine* routine, void* args);
-void ptpool_wait();
+struct ptpool* ptpool_create(size_t workers);
+void ptpool_destroy(struct ptpool* pool);
+bool ptpool_enqueue_task(struct ptpool* pool, ptpool_routine* routine,
+                         void* args);
+void ptpool_wait(struct ptpool* pool);
 
 #endif // _PTPOOL_H_

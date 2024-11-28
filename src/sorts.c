@@ -29,6 +29,8 @@ static int selection_sort(size_t size, double* array)
 #include "ptpool.h"
 
 
+extern struct ptpool* pool;
+
 #ifndef PARALLEL_SORT_ONLY_ROWS
 struct _halfsort_args
 {
@@ -52,12 +54,18 @@ static int parallel_selection_sort(double* array, size_t lsize, double left[lsiz
         { lsize, left, array },
         { rsize, right, array + lsize }
     };
+    struct ptpool* halfsort_pool = ptpool_create(2);
+    if (!halfsort_pool)
+        return -1;
+
     for (size_t i = 0; i < 2; ++i) {
-        if (!ptpool_enqueue_task(_halfsort_routine, (void*)(&tasks_args[i])))
+        if (!ptpool_enqueue_task(halfsort_pool, _halfsort_routine,
+                                 (void*)(&tasks_args[i])))
             return -1;
     }
 
-    ptpool_wait();
+    ptpool_wait(halfsort_pool);
+    ptpool_destroy(halfsort_pool);
     return 0;
 }
 
@@ -136,11 +144,11 @@ int sort_rows(struct matrix* matp)
     for (size_t i = 0; i < matp->rows; ++i) {
         tasks_args[i].matp = matp;
         tasks_args[i].row = i;
-        if (!ptpool_enqueue_task(_rowsort_routine, (void*)(&tasks_args[i])))
+        if (!ptpool_enqueue_task(pool, _rowsort_routine, (void*)(&tasks_args[i])))
             return -1;
     }
 
-    ptpool_wait();
+    ptpool_wait(pool);
     return 0;
 }
 #elif defined(_OPENMP)
