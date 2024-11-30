@@ -8,6 +8,14 @@ enum matrix_type {
     MT_TABLE
 };
 
+#ifdef USE_MT_TABLE
+#define MT_DEFAULT_TYPE (MT_TABLE)
+#elif defined(USE_MT_VECTOR)
+#define MT_DEFAULT_TYPE (MT_VECTOR)
+#else
+#define MT_DEFAULT_TYPE (MT_TABLE)
+#endif
+
 struct matrix {
     size_t rows;
     size_t cols;

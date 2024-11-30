@@ -10,7 +10,6 @@
 #include "reducers.h"
 #include "futils.h"
 
-
 static int args_parse(int argc, char* argv[], int* Np);
 static int library_init();
 static int library_exit();
@@ -29,19 +28,19 @@ int main(int argc, char* argv[])
     if (ret) goto exit;
 
     struct matrix M1 = {0};
-    ret = double_matrix_create(N, N / 2, MT_TABLE, &M1);
+    ret = double_matrix_create(N, N / 2, MT_DEFAULT_TYPE, &M1);
     if (ret) goto libexit;
 
     struct matrix M2 = {0};
-    ret = double_matrix_create(N / 2, N, MT_TABLE, &M2);
+    ret = double_matrix_create(N / 2, N, MT_DEFAULT_TYPE, &M2);
     if (ret) goto freeM1;
 
     struct matrix Mt = {0};
-    ret = double_matrix_create(N / 2, N, MT_TABLE, &Mt);
+    ret = double_matrix_create(N / 2, N, MT_DEFAULT_TYPE, &Mt);
     if (ret) goto freeM2;
 
     struct matrix M = {0};
-    ret = double_matrix_create(N, N, MT_TABLE, &M);
+    ret = double_matrix_create(N, N, MT_DEFAULT_TYPE, &M);
     if (ret) goto freeMt;
 
     ret = stamp_time(&T1);
