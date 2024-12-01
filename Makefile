@@ -68,17 +68,17 @@ $(BUILDDIR)/tools/%.o: $(SRCDIR)/tools/%.c $(BUILDDIR)/tools
 clean-build:
 	rm -rf $(BUILDDIR)
 
-just-clean:
+clean-just-main:
 	rm -f just-main
 
-omp-clean:
+clean-omp-main:
 	rm -f omp-main
 
-pt-clean:
+clean-pt-main:
 	rm -f pt-main
 
-clean: clean-build just-clean omp-clean pt-clean
+clean: clean-build clean-just-main clean-omp-main clean-pt-main
 	rm -f $(OCLWC)
 	rm -f $(KERNELS)
 
-.PHONY: clean clean-build just-clean omp-clean pt-clean
+.PHONY: clean clean-build clean-just-main clean-omp-main clean-pt-main
