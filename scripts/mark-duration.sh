@@ -5,6 +5,8 @@ usage()
     cat <<EOF
 Usage: ${0##*/} [options] benchmark N
 
+Prints only milliseconds from running benchmark with N
+
 Options:
     -h, --help  Prints this help message
 EOF
