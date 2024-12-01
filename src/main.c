@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <errno.h>
+#include <string.h>
 
 #include "matrix.h"
 #include "generators.h"
@@ -11,6 +12,7 @@
 #include "futils.h"
 
 static int args_parse(int argc, char* argv[], int* Np);
+static enum matrix_type env_parse_matrix_type();
 static int library_init();
 static int library_exit();
 
@@ -18,6 +20,7 @@ int main(int argc, char* argv[])
 {
     const double A = 400.0; // А = Ф(8) * И(5) * О(10)
     int N, ret = 0;
+    enum matrix_type mtype = env_parse_matrix_type();
     struct tstamp T1, T2;
     long delta_ms = 0;
 
@@ -28,19 +31,19 @@ int main(int argc, char* argv[])
     if (ret) goto exit;
 
     struct matrix M1 = {0};
-    ret = double_matrix_create(N, N / 2, MT_DEFAULT_TYPE, &M1);
+    ret = double_matrix_create(N, N / 2, mtype, &M1);
     if (ret) goto libexit;
 
     struct matrix M2 = {0};
-    ret = double_matrix_create(N / 2, N, MT_DEFAULT_TYPE, &M2);
+    ret = double_matrix_create(N / 2, N, mtype, &M2);
     if (ret) goto freeM1;
 
     struct matrix Mt = {0};
-    ret = double_matrix_create(N / 2, N, MT_DEFAULT_TYPE, &Mt);
+    ret = double_matrix_create(N / 2, N, mtype, &Mt);
     if (ret) goto freeM2;
 
     struct matrix M = {0};
-    ret = double_matrix_create(N, N, MT_DEFAULT_TYPE, &M);
+    ret = double_matrix_create(N, N, mtype, &M);
     if (ret) goto freeMt;
 
     ret = stamp_time(&T1);
@@ -120,6 +123,18 @@ usage:
     printf("Usage: %s N\n\nArguments:\n    N    size of matrices, minimum 2\n",
            argv[0]);
     return ret;
+}
+
+static enum matrix_type env_parse_matrix_type()
+{
+    const char* raw_matrix_type = getenv("MATRIX_TYPE");
+    if (!raw_matrix_type)
+        return MT_TABLE;
+    if (!strncmp("vector", raw_matrix_type, 7))
+        return MT_VECTOR;
+    if (!strncmp("table", raw_matrix_type, 6))
+        return MT_TABLE;
+    return MT_TABLE;
 }
 
 #ifdef USE_PTHREAD
