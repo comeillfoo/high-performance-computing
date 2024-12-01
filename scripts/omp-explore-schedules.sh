@@ -73,6 +73,6 @@ for schedule in 'static' 'dynamic' 'guided' 'auto'; do
     fi
     "${TOP_DIR}/explore-matrix-sorts.sh" --tests "${TESTS_NR}" \
         --high "${HIGH_N_LIMIT}" "${MK_BUILD_TARGET}" \
-        | awk -W interactive "NR==1 {print \"SCHEDULE,\"\$0; next} {print \"${schedule},\"\$0}" -
+        | awk -W interactive "${program_text}" -
     count=$((count + 1))
 done

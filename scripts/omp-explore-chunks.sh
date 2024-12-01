@@ -7,7 +7,7 @@ TOP_DIR="${0%/*}"
 TESTS_NR=10
 
 # @brief N
-N=100
+N=64
 
 # @brief high chunk size limit
 HIGH_CHUNK_SIZE_LIMIT=$((N * 2))
