@@ -14,7 +14,7 @@ usage()
     cat <<EOF
 Usage: ${0##*/} [options] benchmark
 
-Explores benchmark's scalability by changing task size (N)
+Explores benchmark's performance (scalability) by changing task size (N)
 
 Options:
     -h, --help   Prints this help message
@@ -29,14 +29,14 @@ while true; do
         -h|--help)
             usage
             ;;
-        -T|--tests)
-            [ "$2" -lt 1 ] && usage
-            TESTS_NR="$2"
-            shift 2
-            ;;
         -H|--high)
             [ "$2" -lt 2 ] && usage
             HIGH_N_LIMIT="$2"
+            shift 2
+            ;;
+        -T|--tests)
+            [ "$2" -lt 1 ] && usage
+            TESTS_NR="$2"
             shift 2
             ;;
         *)
@@ -57,12 +57,22 @@ if [ ! -f "${benchmark}" ]; then
     exit 2 # ENOENT: No such file or directory
 fi
 
-# @brief high N limit minus one
-inner_loop_N_limit=$((HIGH_N_LIMIT - 1))
-for test_nr in $(seq "${TESTS_NR}"); do
-    for N in $(seq 2 "${inner_loop_N_limit}"); do
-        echo -n "$("${TOP_DIR}/mark-duration.sh" "${benchmark}" "${N}"),"
-    done
-    echo "$("${TOP_DIR}/mark-duration.sh" "${benchmark}" "${HIGH_N_LIMIT}")"
+# print CSV-table header
+echo -n 'MATRIX TYPE,#'
+for N in $(seq 2 "${HIGH_N_LIMIT}"); do
+    echo -n ",${N}"
 done
+echo
 
+# print CSV-table body
+for mtype in 'table' 'vector'; do
+    unset MATRIX_TYPE
+    export MATRIX_TYPE="${mtype}"
+    for test_nr in $(seq "${TESTS_NR}"); do
+        echo -n "${mtype},${test_nr}"
+        for N in $(seq 2 "${HIGH_N_LIMIT}"); do
+            echo -n ",$("${TOP_DIR}/mark-duration.sh" "${benchmark}" "${N}")"
+        done
+        echo
+    done
+done

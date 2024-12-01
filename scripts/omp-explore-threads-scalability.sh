@@ -12,13 +12,17 @@ HIGH_N_LIMIT=100
 # @brief threads number upper limit
 HIGH_NUM_THREADS="$(($(nproc) * 2))"
 
+# @brief Makefile's target to build and clean benchmark
+MK_BUILD_TARGET='omp-main'
+
 usage()
 {
     cat <<EOF
-Usage: ${0##*/} [options] benchmark
+Usage: ${0##*/} [options] [benchmark]
 
-Explores benchmark's scalability by changing threads number (OMP_NUM_THREADS).
-Changes number of threads from 1 to ${HIGH_NUM_THREADS}
+Explores benchmark's performance by changing threads number (OMP_NUM_THREADS).
+Changes number of threads from 1 to ${HIGH_NUM_THREADS}. Also, sets OMP_SCHEDULE
+='static,1' and OMP_CANCELLATION=true.
 
 Options:
     -h, --help   Prints this help message
@@ -33,14 +37,14 @@ while true; do
         -h|--help)
             usage
             ;;
-        -T|--tests)
-            [ "$2" -lt 1 ] && usage
-            TESTS_NR="$2"
-            shift 2
-            ;;
         -H|--high)
             [ "$2" -lt 2 ] && usage
             HIGH_N_LIMIT="$2"
+            shift 2
+            ;;
+        -T|--tests)
+            [ "$2" -lt 1 ] && usage
+            TESTS_NR="$2"
             shift 2
             ;;
         *)
@@ -49,21 +53,20 @@ while true; do
     esac
 done
 
-[ $# -lt 1 ] && usage
-
-# @brief path to program under measurements
-benchmark="$1"
-
+MK_BUILD_TARGET="${1:-${MK_BUILD_TARGET}}"
 set -ueo pipefail
 
-if [ ! -f "${benchmark}" ]; then
-    echo "Unable to find benchmark ${benchmark}"
-    exit 2 # ENOENT: No such file or directory
-fi
-
 export OMP_CANCELLATION=true
+export OMP_SCHEDULE='static,1'
+count=0
 for threads_nr in $(seq 1 "${HIGH_NUM_THREADS}"); do
     export OMP_NUM_THREADS="${threads_nr}"
-    "${TOP_DIR}/explore-task-scalability.sh" --tests "${TESTS_NR}" \
-        --high "${HIGH_N_LIMIT}" "${benchmark}"
+    program_text="NR==1 {print \"THREADS,\"\$0; next} {print \"${threads_nr},\"\$0}"
+    if [ "${count}" -gt 0 ]; then
+        program_text="NR>1 {print \"${threads_nr},\"\$0}"
+    fi
+    "${TOP_DIR}/explore-matrix-sorts.sh" --tests "${TESTS_NR}" \
+        --high "${HIGH_N_LIMIT}" "${MK_BUILD_TARGET}" \
+        | awk -W interactive "${program_text}" -
+    count=$((count + 1))
 done
