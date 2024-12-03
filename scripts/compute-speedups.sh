@@ -8,6 +8,9 @@ usage()
     cat <<EOF
 Usage: ${0##*/} [options] unparallelized parallelized
 
+Computes speedups from unparallelized (single-threaded) and parallelized
+execution times
+
 Options:
     -h, --help       Prints this help message
 EOF

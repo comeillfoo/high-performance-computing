@@ -8,6 +8,8 @@ usage()
     cat <<EOF
 Usage: ${0##*/} [options] speedups
 
+Computes parallel efficiencies from speedups
+
 Options:
     -h, --help       Prints this help message
 EOF
