@@ -83,3 +83,8 @@ Sources:
 2. [Дизайн OpenCL](http://opencl.ru/design)
 3. [OpenCL Programming model](https://github.com/KhronosGroup/OpenCL-Guide/blob/main/chapters/opencl_programming_model.md)
 4. [OpenCL Book](https://fixstars.github.io/opencl-book/opencl-book/basic-opencl/basic-program-flow.html)
+
+## Sources
+
+1. [GNUplot tips for nice looking charts from a CSV file - Raymii.org](https://raymii.org/s/tutorials/GNUplot_tips_for_nice_looking_charts_from_a_CSV_file.html)
+2. [Запросто собираем базу данных при помощи команд Linux / Хабр](https://habr.com/ru/articles/857756/)
