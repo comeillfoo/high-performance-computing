@@ -83,9 +83,9 @@ set key right bottom
 set xtics 2
 set ytics 10
 
-set style line 2 lw 3 lt rgb "#f62aa0" # (pink)
-set style line 3 lw 3 lt rgb "#26dfd0" # (light blue)
-set style line 4 lw 3 lt rgb "#b8ee30" # (limegreen)
+set style line 2 lw 3 lt rgb "#f62aa0"
+set style line 3 lw 3 lt rgb "#26dfd0"
+set style line 4 lw 3 lt rgb "#b8ee30"
 set style line 5 lw 3 lt rgb "#f2d338"
 set style line 6 lw 3 lt rgb "#f2622e"
 set style line 7 lw 3 lt rgb "#f23030"
