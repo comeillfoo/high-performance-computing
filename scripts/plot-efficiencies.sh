@@ -90,9 +90,9 @@ set style line 8 lw 3 lt rgb "#248ea6"
 set style line 9 lw 3 lt rgb "#005148"
 set style line 10 lw 3 lt rgb "#a6bc09"
 
-set yrange [0:10]
+set yrange [0:2]
 set xrange [10:100]
-set ytics 0.5
+set ytics 0.1
 set xtics 5
 
 stats '${csvtable}'

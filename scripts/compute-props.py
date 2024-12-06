@@ -43,9 +43,9 @@ def write_csv(path: pathlib.Path, table: dict) -> int:
 
 def S(args: Tuple[float, float]) -> float:
     v1, vp = args
-    if v1 == 0.0:
-        return vp / 1.0e-9
-    return vp / v1
+    if vp == 0.0:
+        return v1 / 1.0e-9
+    return v1 / vp
 
 
 def compute_speedup(args: argparse.Namespace) -> int:
