@@ -21,6 +21,8 @@ struct ptpool {
     size_t busy_workers;        // working_cnt
     size_t workers_alive;       // thread_cnt
     bool stop;
+    size_t workers;
+    pthread_t tids[];           // flexible array member
 };
 
 struct ptpool* ptpool_create(size_t workers);

@@ -80,10 +80,10 @@ struct ptpool* ptpool_create(size_t workers)
     struct ptpool* pool = NULL;
     if (0 == workers) return NULL;
 
-    pool = malloc(sizeof(*pool));
+    pool = malloc(sizeof(*pool) + sizeof(pthread_t) * workers);
     if (!pool) return NULL;
 
-    pthread_t tids[workers];
+    pool->workers = workers;
     pool->workers_alive = workers;
     pool->busy_workers = 0;
     pool->stop = false;
@@ -100,12 +100,12 @@ struct ptpool* ptpool_create(size_t workers)
         goto err_if_all_idle;
 
     for (size_t i = 0; i < workers; ++i) {
-        if (!pthread_create(&tids[i], NULL, ptpool_worker_routine, pool)) {
-            if (!pthread_detach(tids[i]))
+        if (!pthread_create(&pool->tids[i], NULL, ptpool_worker_routine, pool)) {
+            if (!pthread_detach(pool->tids[i]))
                 continue;
         }
         for (size_t j = 0; j < i; ++j)
-            pthread_cancel(tids[j]);
+            pthread_cancel(pool->tids[j]);
         goto err_workers;
     }
 

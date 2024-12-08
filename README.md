@@ -19,7 +19,9 @@
 
 ### Pthreads
 
-4. TODO: investigate how to implement fixed size thread pool
+4. Implemented fixed size pool with dynamic scheduling.
+
+TODO: needs to implement static scheduling
 
 ### OpenCL
 
