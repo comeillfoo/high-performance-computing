@@ -149,12 +149,24 @@ struct ptpool* pool = NULL;
 static int library_init()
 {
     size_t workers = 2;
+    enum ptpool_type type = PTPOOLT_DYNAMIC;
     const char* raw_value = getenv("PT_NUM_THREADS");
     if (raw_value) {
         workers = strtoul(raw_value, NULL, 10);
         workers = (workers == ULONG_MAX)? 2 : workers;
     }
-    pool = ptpool_create(workers);
+
+    raw_value = getenv("PT_POOL_TYPE");
+    if (raw_value) {
+        if (!strncmp("dynamic", raw_value, 8)) {
+            type = PTPOOLT_DYNAMIC;
+        }
+        if (!strncmp("static", raw_value, 7)) {
+            type = PTPOOLT_STATIC;
+        }
+    }
+
+    pool = ptpool_create(workers, type);
     if (!pool)
         return -1;
     return 0;

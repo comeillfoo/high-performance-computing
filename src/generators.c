@@ -42,16 +42,16 @@ int generate_random_matrix(struct matrix* matp, double a, double b,
 {
     if (!matp) return -1;
     struct _randomize_vec_args tasks_args[matp->rows];
-    unsigned int seeds[pool->workers_alive];
+    unsigned int seeds[pool->workers];
     seeds[0] = seed;
-    for (size_t i = 1; i < pool->workers_alive; ++i)
+    for (size_t i = 1; i < pool->workers; ++i)
         seeds[i] = time(NULL); // that may be unsafe way
 
 
     for (size_t i = 0; i < matp->rows; ++i) {
         tasks_args[i].matp = matp;
         tasks_args[i].row = i;
-        tasks_args[i].seedp = &seeds[(i % pool->workers_alive)];
+        tasks_args[i].seedp = &seeds[(i % pool->workers)];
         tasks_args[i].a = a;
         tasks_args[i].b = b;
         if (!ptpool_enqueue_task(pool, _randomize_vec_routine, &tasks_args[i]))

@@ -52,7 +52,7 @@ static int parallel_selection_sort(double* array, size_t lsize, double left[lsiz
         { lsize, left, array },
         { rsize, right, array + lsize }
     };
-    struct ptpool* halfsort_pool = ptpool_create(2);
+    struct ptpool* halfsort_pool = ptpool_create(2, pool->type);
     if (!halfsort_pool)
         return -1;
 
