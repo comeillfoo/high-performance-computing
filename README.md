@@ -19,9 +19,10 @@
 
 ### Pthreads
 
-4. Implemented fixed size pool with dynamic scheduling.
-
-TODO: needs to implement static scheduling
+4. Change scheduling/pool type by setting environment variable `PT_POOL_TYPE` to:
+    + `static` like `OMP_SCHEDULE=static,1`
+    + `dynamic` like `OMP_SCHEDULE=dynamic,1`,
+default `dynamic`.
 
 ### OpenCL
 
