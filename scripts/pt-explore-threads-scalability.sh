@@ -16,17 +16,17 @@ HIGH_NUM_THREADS="$(($(nproc) * 2))"
 LOW_NUM_THREADS=1
 
 # @brief Makefile's target to build and clean benchmark
-MK_BUILD_TARGET='omp-main'
+MK_BUILD_TARGET='pt-main'
 
 usage()
 {
     cat <<EOF
-Usage: ${0##*/} [options] [benchmark]
+Usage: ${0##*/} [options] [makefile-target]
 
 Explores benchmark's performance that built and cleaned by specified
 makefile-target (default ${MK_BUILD_TARGET}) by changing threads number
-(OMP_NUM_THREADS). Changes number of threads from ${LOW_NUM_THREADS} to
-${HIGH_NUM_THREADS}. Also, sets OMP_SCHEDULE='static,1' and OMP_CANCELLATION=true.
+(PT_NUM_THREADS). Changes number of threads from ${LOW_NUM_THREADS} to
+${HIGH_NUM_THREADS}. Uses default pool type - dynamic (PT_POOL_TYPE).
 
 Options:
     -h, --help   Prints this help message
@@ -67,11 +67,9 @@ done
 MK_BUILD_TARGET="${1:-${MK_BUILD_TARGET}}"
 set -ueo pipefail
 
-export OMP_CANCELLATION=true
-export OMP_SCHEDULE='static,1'
 count=0
 for threads_nr in $(seq "${LOW_NUM_THREADS}" "${HIGH_NUM_THREADS}"); do
-    export OMP_NUM_THREADS="${threads_nr}"
+    export PT_NUM_THREADS="${threads_nr}"
     program_text="NR==1 {print \"THREADS,\"\$0; next} {print \"${threads_nr},\"\$0}"
     if [ "${count}" -gt 0 ]; then
         program_text="NR>1 {print \"${threads_nr},\"\$0}"

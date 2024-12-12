@@ -4,7 +4,7 @@
 TOP_DIR="${0%/*}"
 
 # @brief number of tests to make
-TESTS_NR=10
+TESTS_NR=16
 
 # @brief high N limit
 HIGH_N_LIMIT=100
