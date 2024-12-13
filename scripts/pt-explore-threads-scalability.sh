@@ -10,10 +10,10 @@ TESTS_NR=16
 HIGH_N_LIMIT=100
 
 # @brief threads number upper limit
-HIGH_NUM_THREADS="$(($(nproc) * 2))"
+MAX_NUM_THREADS="$(($(nproc) * 2))"
 
 # @brief threads number lower limit
-LOW_NUM_THREADS=1
+MIN_NUM_THREADS=1
 
 # @brief Makefile's target to build and clean benchmark
 MK_BUILD_TARGET='pt-main'
@@ -25,13 +25,14 @@ Usage: ${0##*/} [options] [makefile-target]
 
 Explores benchmark's performance that built and cleaned by specified
 makefile-target (default ${MK_BUILD_TARGET}) by changing threads number
-(PT_NUM_THREADS). Changes number of threads from ${LOW_NUM_THREADS} to
-${HIGH_NUM_THREADS}. Uses default pool type - dynamic (PT_POOL_TYPE).
+(PT_NUM_THREADS). Changes number of threads from ${MIN_NUM_THREADS} to
+${MAX_NUM_THREADS}. Uses default pool type - dynamic (PT_POOL_TYPE).
 
 Options:
     -h, --help   Prints this help message
     -H, --high   Sets high limit for testing task size (N), default ${HIGH_N_LIMIT}
-    -l, --low    Sets low limit for threads number, default ${LOW_NUM_THREADS}
+    -m, --min    Sets lower limit for threads number, default ${MIN_NUM_THREADS}
+    -M, --max    Sets upper limit for threads number, default ${MAX_NUM_THREADS}
     -T, --tests  Number of tests to make, default ${TESTS_NR}
 EOF
     exit 22 # EINVAL: Invalid argument
@@ -47,10 +48,16 @@ while true; do
             HIGH_N_LIMIT="$2"
             shift 2
             ;;
-        -l|--low)
-            [ "$2" -gt "${HIGH_NUM_THREADS}" ] && usage
+        -m|--min)
+            [ "$2" -gt "${MAX_NUM_THREADS}" ] && usage
             [ "$2" -lt 1 ] && usage
-            LOW_NUM_THREADS="$2"
+            MIN_NUM_THREADS="$2"
+            shift 2
+            ;;
+        -M|--max)
+            [ "$2" -lt "${MIN_NUM_THREADS}" ] && usage
+            [ "$2" -lt 1 ] && usage
+            MAX_NUM_THREADS="$2"
             shift 2
             ;;
         -T|--tests)
@@ -68,7 +75,7 @@ MK_BUILD_TARGET="${1:-${MK_BUILD_TARGET}}"
 set -ueo pipefail
 
 count=0
-for threads_nr in $(seq "${LOW_NUM_THREADS}" "${HIGH_NUM_THREADS}"); do
+for threads_nr in $(seq "${MIN_NUM_THREADS}" "${MAX_NUM_THREADS}"); do
     export PT_NUM_THREADS="${threads_nr}"
     program_text="NR==1 {print \"THREADS,\"\$0; next} {print \"${threads_nr},\"\$0}"
     if [ "${count}" -gt 0 ]; then
