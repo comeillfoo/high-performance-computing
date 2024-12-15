@@ -8,7 +8,7 @@ usage()
     cat <<EOF
 Usage: ${0##*/} [options] csvtable
 
-Plots OpenMP's schedules from CSV-table
+Plots pool types from CSV-table
 
 Options:
     -h, --help       Prints this help message
@@ -62,7 +62,7 @@ matrices_impl=$(case "${csvtable}" in
 esac)
 
 # @brief plot title
-plot_title=$(echo "Исследование влияния расписания при\nпараллелизации сортировки ${sort_impl}\n(матрицы - ${matrices_impl})")
+plot_title=$(echo "Исследование вариантов распределения задач при\nпараллелизации сортировки ${sort_impl}\n(матрицы - ${matrices_impl})")
 
 # @brief output path
 output="${csvtable/.csv/.png}"
