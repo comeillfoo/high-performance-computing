@@ -1,17 +1,20 @@
 CC=gcc
 LD=gcc
-OCLWC=tools/oclwc
 
 INCDIR=include
 SRCDIR=src
 BUILDDIR=build
 
 TARGETS=main matrix generators mappers mergers multipliers sorts reducers futils
-PT_TARGETS=$(TARGETS) ptpool
-OCL_TARGETS=ocl-main mappers sorts oclw futils
 
-KERNELS=kernel.clbin
-TOOLS=$(OCLWC)
+PT_TARGETS=$(TARGETS) ptpool
+OCL_TARGETS=$(TARGETS) oclw
+
+OCLWC_TARGETS=$(OCLWC) oclw futils
+OCLWC=tools/oclwc
+
+OCL_KERNELS_TARGETS=ocl-main
+OCL_KERNELS=ocl-main.clbin
 
 CFLAGS=-O3 -Wall -Werror -pedantic -I$(INCDIR)
 CFLAGS+=$(USERCFLAGS)
@@ -43,14 +46,16 @@ pt-main: LDFLAGS += -pthread
 pt-main: $(addsuffix .o,$(addprefix $(BUILDDIR)/,$(PT_TARGETS)))
 	$(LD) $(LDFLAGS) $^ -o $@ $(LIBS)
 
-ocl-main: CFLAGS += -D CL_TARGET_OPENCL_VERSION=300
-ocl-main: $(addsuffix .o,$(addprefix $(BUILDDIR)/,$(OCL_TARGETS))) $(TOOLS) $(KERNELS)
-	$(LD) $(LDFLAGS) $(addsuffix .o,$(addprefix $(BUILDDIR)/,$(OCL_TARGETS))) -o $@ $(OCL_LIBS)
+ocl-main: CFLAGS += -DUSE_OPENCL -DCL_TARGET_OPENCL_VERSION=300
+ocl-main: _ocl-main $(OCLWC) $(OCL_KERNELS)
 
-$(OCLWC): $(BUILDDIR)/tools/oclwc.o $(BUILDDIR)/oclw.o $(BUILDDIR)/futils.o
+_ocl-main: $(addsuffix .o,$(addprefix $(BUILDDIR)/,$(OCL_TARGETS)))
+	$(LD) $(LDFLAGS) $^ -o ocl-main $(OCL_LIBS)
+
+$(OCLWC): $(addsuffix .o,$(addprefix $(BUILDDIR)/,$(OCLWC_TARGETS)))
 	$(LD) $(LDFLAGS) $^ -o $@ $(OCL_LIBS)
 
-$(KERNELS): $(addsuffix .cl,$(addprefix $(SRCDIR)/kernels/, main))
+$(OCL_KERNELS): $(addsuffix .cl,$(addprefix $(SRCDIR)/, $(OCL_KERNELS_TARGETS)))
 	$(OCLWC) $@ $^
 
 $(BUILDDIR):
@@ -77,8 +82,11 @@ clean-omp-main:
 clean-pt-main:
 	rm -f pt-main
 
-clean: clean-build clean-just-main clean-omp-main clean-pt-main
+clean-ocl-main:
 	rm -f $(OCLWC)
-	rm -f $(KERNELS)
+	rm -f $(OCL_KERNELS)
+	rm -f ocl-main
 
-.PHONY: clean clean-build clean-just-main clean-omp-main clean-pt-main
+clean: clean-build clean-just-main clean-omp-main clean-pt-main clean-ocl-main
+
+.PHONY: clean clean-build clean-just-main clean-omp-main clean-pt-main clean-ocl-main

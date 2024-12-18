@@ -137,7 +137,102 @@ static enum matrix_type env_parse_matrix_type()
     return MT_TABLE;
 }
 
-#ifdef USE_PTHREAD
+#ifdef USE_OPENCL
+#include "oclw.h"
+#include <stdlib.h>
+
+
+cl_platform_id ocl_platform_id = NULL;
+cl_device_id ocl_device_id = NULL;
+cl_context ocl_context = NULL;
+cl_command_queue ocl_queue = NULL;
+cl_program ocl_program = NULL;
+
+
+static int library_init()
+{
+    int ret = 0;
+    FILE* kern_bin_stream = NULL;
+    ssize_t kern_bin_sz = -1;
+    unsigned char* kern_bin = NULL;
+
+    char* kern_bin_path = getenv("OCL_KERNELS_PATH");
+    if (!kern_bin_path) {
+        kern_bin_path = "./ocl-main.clbin";
+    }
+
+    kern_bin_stream = fopen(kern_bin_path, "rb");
+    if (!kern_bin_stream) {
+        perror("Unable to open kernel");
+        ret = 1;
+        goto exit;
+    }
+
+    kern_bin_sz = fget_size_verbose(kern_bin_stream);
+    if (kern_bin_sz == -1) {
+        ret = 1;
+        goto exit;
+    }
+
+    kern_bin = malloc(sizeof(unsigned char) * kern_bin_sz);
+    if (!kern_bin) {
+        fprintf(stderr, "Unable to allocate %zu bytes for buffer\n",
+                kern_bin_sz);
+        ret = 1;
+        goto free_kern_bin_stream;
+    }
+
+    if (fread(kern_bin, sizeof(unsigned char), kern_bin_sz,
+              kern_bin_stream) < kern_bin_sz) {
+        fprintf(stderr, "Unable to read kernel binary\n");
+        ret = 1;
+        goto free_kern_bin;
+    }
+
+    ret = oclw_get_default_platform(&ocl_platform_id);
+    if (ret) goto free_kern_bin;
+    ret = oclw_get_default_device(ocl_platform_id, &ocl_device_id);
+    if (ret) goto free_kern_bin;
+    ret = oclw_create_context(&ocl_device_id, &ocl_context);
+    if (ret) goto free_kern_bin;
+    ret = oclw_create_cmd_queue(ocl_context, ocl_device_id, &ocl_queue);
+    if (ret) {
+        ret |= oclw_destroy_context(ocl_context);
+        goto free_kern_bin;
+    }
+    ret = oclw_create_program_from_binary(ocl_context, ocl_device_id, &ocl_program,
+                                          sizeof(unsigned char) * kern_bin_sz,
+                                          kern_bin);
+    if (ret) {
+        ret |= oclw_destroy_cmd_queue(ocl_queue);
+        ret |= oclw_destroy_context(ocl_context);
+        goto free_kern_bin;
+    }
+    ret = oclw_build_program(ocl_program, ocl_device_id, NULL);
+    if (ret) {
+        ret |= oclw_destroy_program_object(ocl_program);
+        ret |= oclw_destroy_cmd_queue(ocl_queue);
+        ret |= oclw_destroy_context(ocl_context);
+        goto free_kern_bin;
+    }
+
+free_kern_bin:
+    free(kern_bin);
+free_kern_bin_stream:
+    ret |= fclose_verbose(kern_bin_stream);
+exit:
+    return ret;
+}
+
+static int library_exit()
+{
+    int ret = 0;
+    ret |= oclw_destroy_program_object(ocl_program);
+    ret |= oclw_destroy_cmd_queue(ocl_queue);
+    ret |= oclw_destroy_context(ocl_context);
+    return ret;
+}
+#elif defined(USE_PTHREAD)
 #include "ptpool.h"
 #include <stdlib.h>
 #include <limits.h>

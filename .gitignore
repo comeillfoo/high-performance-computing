@@ -1,5 +1,5 @@
 .vscode
 build
-kernel.*
 oclwc
 /*-main
+*.clbin
