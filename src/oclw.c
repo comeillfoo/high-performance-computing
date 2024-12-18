@@ -261,65 +261,79 @@ int oclw_destroy_memobj(cl_mem mem)
     return 0;
 }
 
-int oclw_wait_till_completion(cl_event event)
+int oclw_wait_till_completion(cl_uint num_events, cl_event events[num_events])
 {
     cl_int cl_ret = 0;
     cl_int event_status;
-    do {
-        cl_ret = oclw_query_event_status(event, &event_status);
-        if (cl_ret != CL_SUCCESS) return 1;
-    } while (event_status != CL_COMPLETE);
+    for (cl_uint i = 0; i < num_events; ++i) {
+        do {
+            cl_ret = oclw_query_event_status(events[i], &event_status);
+            if (cl_ret != CL_SUCCESS) return 1;
+        } while (event_status != CL_COMPLETE);
+    }
     return 0;
 }
 
-int oclw_sync_write_memobj(cl_command_queue queue, cl_mem mem, size_t size,
-                           void* ptr)
+int oclw_sync_write_memobj(cl_command_queue queue, cl_mem mem, size_t off,
+                           size_t size, void* ptr)
 {
     cl_event event;
-    cl_int cl_ret = clEnqueueWriteBuffer(queue, mem, CL_TRUE, 0, size, ptr, 0,
+    cl_int cl_ret = clEnqueueWriteBuffer(queue, mem, CL_TRUE, off, size, ptr, 0,
                                          NULL, &event);
-    if (cl_ret == CL_SUCCESS) return oclw_wait_till_completion(event);
+    if (cl_ret == CL_SUCCESS) return oclw_wait_till_completion(1, &event);
     oclw_error(cl_ret, "Unable to write buffer to memory");
     return 1;
 }
 
-int oclw_async_write_memobj(cl_command_queue queue, cl_mem mem, size_t size,
-                            void* ptr, cl_event* event)
+int oclw_async_write_memobj(cl_command_queue queue, cl_mem mem, size_t off,
+                            size_t size, void* ptr, cl_event* event)
 {
-    cl_int cl_ret = clEnqueueWriteBuffer(queue, mem, CL_FALSE, 0, size, ptr, 0,
+    cl_int cl_ret = clEnqueueWriteBuffer(queue, mem, CL_FALSE, off, size, ptr, 0,
                                          NULL, event);
     if (cl_ret == CL_SUCCESS) return 0;
     oclw_error(cl_ret, "Unable to write buffer to memory");
     return 1;
 }
 
-int oclw_sync_read_memobj(cl_command_queue queue, cl_mem mem, size_t size,
-                          void* ptr)
+int oclw_sync_read_memobj_after(cl_command_queue queue, cl_mem mem, size_t off,
+                                size_t size, void* ptr, cl_uint num_events,
+                                cl_event events[num_events])
 {
     cl_event event;
-    cl_int cl_ret = clEnqueueReadBuffer(queue, mem, CL_TRUE, 0, size, ptr, 0,
+    cl_int cl_ret = clEnqueueReadBuffer(queue, mem, CL_TRUE, off, size, ptr, 0,
                                         NULL, &event);
-    if (cl_ret == CL_SUCCESS) return oclw_wait_till_completion(event);
+    if (cl_ret == CL_SUCCESS) return oclw_wait_till_completion(1, &event);
     oclw_error(cl_ret, "Unable to read buffer from memory");
     return 1;
 }
 
-int oclw_async_read_memobj(cl_command_queue queue, cl_mem mem, size_t size,
-                           void* ptr, cl_event* event)
+int oclw_sync_read_memobj(cl_command_queue queue, cl_mem mem, size_t off,
+                          size_t size, void* ptr)
 {
-    cl_int cl_ret = clEnqueueReadBuffer(queue, mem, CL_FALSE, 0, size, ptr, 0,
-                                        NULL, event);
+    return oclw_sync_read_memobj_after(queue, mem, off, size, ptr, 0, NULL);
+}
+
+int oclw_async_read_memobj_after(cl_command_queue queue, cl_mem mem, size_t off,
+                                 size_t size, void* ptr, cl_uint num_events,
+                                 cl_event events[num_events], cl_event* event)
+{
+    cl_int cl_ret = clEnqueueReadBuffer(queue, mem, CL_FALSE, off, size, ptr,
+                                        num_events, events, event);
     if (cl_ret == CL_SUCCESS) return 0;
     oclw_error(cl_ret, "Unable to read buffer from memory");
     return 1;
 }
 
-int oclw_sync_run_task_after_events(cl_command_queue queue, cl_kernel kernel,
-                                    cl_uint num_events,
-                                    cl_event events[num_events])
+int oclw_async_read_memobj(cl_command_queue queue, cl_mem mem, size_t off,
+                           size_t size, void* ptr, cl_event* event)
 {
-    size_t global_size = 1;
-    size_t local_size = 4;
+    return oclw_async_read_memobj_after(queue, mem, off, size, ptr, 0, NULL, event);
+}
+
+int oclw_sync_run_task_after(cl_command_queue queue, cl_kernel kernel,
+                             size_t global_size, size_t local_size,
+                             cl_uint num_events, cl_event events[num_events])
+{
     cl_event event;
     cl_int cl_ret = clEnqueueNDRangeKernel(queue, kernel, 1, NULL, &global_size,
                                            &local_size, num_events, events,
@@ -328,12 +342,32 @@ int oclw_sync_run_task_after_events(cl_command_queue queue, cl_kernel kernel,
         oclw_error(cl_ret, "Unable to run task");
         return 1;
     }
-    return oclw_wait_till_completion(event);
+    return oclw_wait_till_completion(1, &event);
 }
 
-int oclw_sync_run_task(cl_command_queue queue, cl_kernel kernel)
+int oclw_sync_run_task(cl_command_queue queue, cl_kernel kernel,
+                       size_t global_size, size_t local_size)
 {
-    return oclw_sync_run_task_after_events(queue, kernel, 0, NULL);
+    return oclw_sync_run_task_after(queue, kernel, global_size, local_size, 0, NULL);
+}
+
+int oclw_async_run_task_after(cl_command_queue queue, cl_kernel kernel,
+                              size_t global_size, size_t local_size,
+                              cl_uint num_events, cl_event events[num_events],
+                              cl_event* event)
+{
+    cl_int cl_ret = clEnqueueNDRangeKernel(queue, kernel, 1, NULL, &global_size,
+                                           &local_size, num_events, events, event);
+    if (cl_ret == CL_SUCCESS) return 0;
+    oclw_error(cl_ret, "Unable to run task");
+    return 1;
+}
+
+int oclw_async_run_task(cl_command_queue queue, cl_kernel kernel,
+                        size_t global_size, size_t local_size, cl_event* event)
+{
+    return oclw_async_run_task_after(queue, kernel, global_size, local_size, 0,
+                                     NULL, event);
 }
 
 #define oclw_setarg_error(errno, arg) \

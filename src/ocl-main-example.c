@@ -168,7 +168,7 @@ int main(int argc, char* argv[])
         ret = oclw_async_write_memobj(cl_queue, M2_memobj, sizeof(double) * M, M2,
                                       &map_abs_ctg_wait_list[1]);
         if (ret) goto freeMs;
-        ret = oclw_sync_run_task_after_events(cl_queue, map_abs_ctg_kern, 2,
+        ret = oclw_sync_run_task_after(cl_queue, map_abs_ctg_kern, 2,
                                               map_abs_ctg_wait_list);
         if (ret) goto freeMs;
         ret = oclw_sync_read_memobj(cl_queue, M2_memobj, sizeof(double) * M, M2);

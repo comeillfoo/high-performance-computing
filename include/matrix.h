@@ -25,5 +25,6 @@ int double_matrix_get(struct matrix* matp, size_t row, size_t col,
                       double* valup);
 int double_matrix_set(struct matrix* matp, size_t row, size_t col,
                       double value);
+double* double_matrix_get_row_mut(struct matrix* matp, size_t row);
 
 #endif // _MATRIX_H_

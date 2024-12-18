@@ -85,3 +85,17 @@ int double_matrix_set(struct matrix* matp, size_t row, size_t col,
     }
     return 0;
 }
+
+double* double_matrix_get_row_mut(struct matrix* matp, size_t row)
+{
+    if (!matp || matp->rows <= row) return NULL;
+    switch (matp->type) {
+    case MT_VECTOR:
+        return &matp->as_vector[matp->cols * row];
+    case MT_TABLE:
+        return matp->as_table[row];
+    default:
+        return NULL;
+    }
+    return NULL;
+}

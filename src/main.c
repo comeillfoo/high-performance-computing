@@ -148,6 +148,8 @@ cl_context ocl_context = NULL;
 cl_command_queue ocl_queue = NULL;
 cl_program ocl_program = NULL;
 
+extern cl_kernel apply_coth_sqrt_kern;
+
 
 static int library_init()
 {
@@ -196,37 +198,38 @@ static int library_init()
     ret = oclw_create_context(&ocl_device_id, &ocl_context);
     if (ret) goto free_kern_bin;
     ret = oclw_create_cmd_queue(ocl_context, ocl_device_id, &ocl_queue);
-    if (ret) {
-        ret |= oclw_destroy_context(ocl_context);
-        goto free_kern_bin;
-    }
+    if (ret) goto err_free_ctx;
     ret = oclw_create_program_from_binary(ocl_context, ocl_device_id, &ocl_program,
                                           sizeof(unsigned char) * kern_bin_sz,
                                           kern_bin);
-    if (ret) {
-        ret |= oclw_destroy_cmd_queue(ocl_queue);
-        ret |= oclw_destroy_context(ocl_context);
-        goto free_kern_bin;
-    }
+    if (ret) goto err_free_cmd_queue;
     ret = oclw_build_program(ocl_program, ocl_device_id, NULL);
-    if (ret) {
-        ret |= oclw_destroy_program_object(ocl_program);
-        ret |= oclw_destroy_cmd_queue(ocl_queue);
-        ret |= oclw_destroy_context(ocl_context);
-        goto free_kern_bin;
-    }
+    if (ret) goto err_free_program_obj;
 
+    // init apply_coth_sqrt kernel object and its memory objects
+    ret = oclw_create_kernobj_for_function("apply_coth_sqrt", ocl_program,
+                                           &apply_coth_sqrt_kern);
+    if (!ret) goto free_kern_bin;
+
+err_free_program_obj:
+    ret |= oclw_destroy_program_object(ocl_program);
+err_free_cmd_queue:
+    ret |= oclw_destroy_cmd_queue(ocl_queue);
+err_free_ctx:
+    ret |= oclw_destroy_context(ocl_context);
 free_kern_bin:
     free(kern_bin);
 free_kern_bin_stream:
     ret |= fclose_verbose(kern_bin_stream);
 exit:
     return ret;
+
 }
 
 static int library_exit()
 {
     int ret = 0;
+    ret |= oclw_destroy_kernel_object(apply_coth_sqrt_kern);
     ret |= oclw_destroy_program_object(ocl_program);
     ret |= oclw_destroy_cmd_queue(ocl_queue);
     ret |= oclw_destroy_context(ocl_context);

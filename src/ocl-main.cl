@@ -1,5 +1,11 @@
 #pragma OPENCL EXTENSION cl_khr_fp64 : enable
 
+kernel void apply_coth_sqrt(global double* vector)
+{
+    unsigned long gid = get_global_id(0);
+    vector[gid] = 1.0 / tanh(sqrt(vector[gid]));
+}
+
 kernel void filter_fold(double min, unsigned long M, constant double* M2,
                         global double* X)
 {

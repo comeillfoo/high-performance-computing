@@ -22,7 +22,118 @@ double combine_abs_sin_sum(double a, double b)
     return fabs(sin(a + b));
 }
 
-#ifdef USE_PTHREAD
+#ifdef USE_OPENCL
+#include "oclw.h"
+
+extern cl_context ocl_context;
+extern cl_command_queue ocl_queue;
+
+cl_kernel apply_coth_sqrt_kern = NULL;
+
+
+int map_matrix(struct matrix* matp, applicator fn)
+{
+    int ret = 0;
+    cl_mem ocl_mem = NULL;
+    cl_kernel ocl_kern = NULL;
+    if (!matp) return -1;
+    if (!matp->rows || !matp->cols) return 0;
+
+    if (fn == apply_coth_sqrt)
+        ocl_kern = apply_coth_sqrt_kern;
+    if (!ocl_kern) return -1;
+
+    cl_event wevents[matp->rows];
+    cl_event cevent = NULL;
+    cl_event revents[matp->rows];
+    const size_t row_size = matp->cols * sizeof(double);
+
+    ret = oclw_create_memobj(ocl_context, CL_MEM_READ_WRITE, &ocl_mem,
+                             sizeof(double) * matp->rows * matp->cols, NULL);
+    if (ret) goto exit;
+    ret = oclw_set_kernel_arg(ocl_kern, 0, sizeof(cl_mem), &ocl_mem, "vector");
+    if (ret) goto free_memobj;
+
+    // fill memory object with rows
+    for (size_t i = 0; i < matp->rows; ++i) {
+        size_t off = sizeof(double) * matp->cols * i;
+        void* row = (void*)double_matrix_get_row_mut(matp, i);
+        if (!row) {
+            ret = -1;
+            goto free_memobj;
+        }
+        ret = oclw_async_write_memobj(ocl_queue, ocl_mem, off, row_size, row,
+                                      &wevents[i]);
+        if (ret) goto free_memobj;
+    }
+
+    // run task on memory object after writes
+    ret = oclw_async_run_task_after(ocl_queue, ocl_kern, matp->rows, 1,
+                                    matp->rows, wevents, &cevent);
+    if (ret) goto free_memobj;
+
+    // read results into original matrix after completion
+    for (size_t i = 0; i < matp->rows; ++i) {
+        size_t off = sizeof(double) * matp->cols * i;
+        void* row = double_matrix_get_row_mut(matp, i);
+        if (!row) {
+            ret = -1;
+            goto free_memobj;
+        }
+        ret = oclw_async_read_memobj_after(ocl_queue, ocl_mem, off, row_size,
+                                           row, 1, &cevent, &revents[i]);
+        if (ret) goto free_memobj;
+    }
+
+    // wait till everything is completed
+    ret = oclw_wait_till_completion(matp->rows, revents);
+free_memobj:
+    ret |= oclw_destroy_memobj(ocl_mem);
+exit:
+    return ret;
+}
+
+int map_matrices(struct matrix* restrict srcp, struct matrix* restrict dstp,
+                 combiner fn)
+{
+    int ret = 0;
+    if (!srcp || !dstp) return -1;
+    if (srcp->rows != dstp->rows || srcp->cols != dstp->cols)
+        return -1;
+
+    for (size_t i = 0; i < dstp->rows; ++i)
+        for (size_t j = 0; j < dstp->cols; ++j) {
+            double a = 0.0;
+            double b = 0.0;
+            ret = double_matrix_get(srcp, i, j, &a);
+            if (ret) return ret;
+            ret = double_matrix_get(dstp, i, j, &b);
+            if (ret) return ret;
+            ret = double_matrix_set(dstp, i, j, fn(b, a));
+            if (ret) return ret;
+        }
+    return ret;
+}
+
+int shift_matrices(struct matrix* restrict srcp, struct matrix* restrict dstp,
+                   size_t shift)
+{
+    int ret = 0;
+    if (!srcp || !dstp) return -1;
+    if (srcp->rows != dstp->rows || srcp->cols != dstp->cols)
+        return -1;
+
+    for (size_t i = 0; i < srcp->rows; ++i)
+        for (size_t j = 0; j < srcp->cols; ++j) {
+            double value = 0.0;
+            ret = double_matrix_get(srcp, i, j, &value);
+            if (ret) return ret;
+            ret = double_matrix_set(dstp, i, (j + shift) % dstp->cols, value);
+            if (ret) return ret;
+        }
+    return ret;
+}
+#elif defined(USE_PTHREAD)
 #include <stdint.h>
 #include "ptpool.h"
 extern struct ptpool* pool;

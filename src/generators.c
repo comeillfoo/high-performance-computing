@@ -9,6 +9,8 @@ static inline double random_double_r(double a, double b, unsigned int* seedp)
     return a + ((double)rand_r(seedp)) / (((double) RAND_MAX) / (b - a));
 }
 
+// skip parallelization for OpenCL 'cause of inability to get random numbers
+// on all supported platforms
 #ifdef USE_PTHREAD
 #include <stdint.h>
 #include "ptpool.h"
