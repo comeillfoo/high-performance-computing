@@ -6,6 +6,12 @@ kernel void apply_coth_sqrt(global double* vector)
     vector[gid] = 1.0 / tanh(sqrt(vector[gid]));
 }
 
+kernel void combine_abs_sin_sum(global const double* source, global double* target)
+{
+    unsigned long gid = get_global_id(0);
+    target[gid] = fabs(sin(target[gid] + source[gid]));
+}
+
 kernel void filter_fold(double min, unsigned long M, constant double* M2,
                         global double* X)
 {
@@ -14,20 +20,6 @@ kernel void filter_fold(double min, unsigned long M, constant double* M2,
     for (unsigned long i = 0; i < M; ++i)
         acc += convert_double(1 - (convert_uint(M2[i] / min) % 2)) * sin(M2[i]);
     *X = acc;
-}
-
-
-kernel void map_sqrt_exp(unsigned long N, global double* M1)
-{
-    for (unsigned long i = 0; i < N; ++i)
-        M1[i] = exp(sqrt(M1[i]));
-}
-
-
-kernel void map_abs_ctg(unsigned long M, global double* Mt, global double* M2)
-{
-    for (unsigned long i = 0; i < M; ++i)
-        M2[i] = fabs(1.0 / tan(M2[i] + Mt[i]));
 }
 
 // source: https://math.stackexchange.com/a/67495

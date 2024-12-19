@@ -137,6 +137,7 @@ static enum matrix_type env_parse_matrix_type()
     return MT_TABLE;
 }
 
+// #define USE_OPENCL
 #ifdef USE_OPENCL
 #include "oclw.h"
 #include <stdlib.h>
@@ -149,6 +150,7 @@ cl_command_queue ocl_queue = NULL;
 cl_program ocl_program = NULL;
 
 extern cl_kernel apply_coth_sqrt_kern;
+extern cl_kernel combine_abs_sin_sum_kern;
 
 
 static int library_init()
@@ -206,11 +208,16 @@ static int library_init()
     ret = oclw_build_program(ocl_program, ocl_device_id, NULL);
     if (ret) goto err_free_program_obj;
 
-    // init apply_coth_sqrt kernel object and its memory objects
+    // init mappers kernels
     ret = oclw_create_kernobj_for_function("apply_coth_sqrt", ocl_program,
                                            &apply_coth_sqrt_kern);
+    if (ret) goto err_free_program_obj;
+
+    ret = oclw_create_kernobj_for_function("combine_abs_sin_sum", ocl_program,
+                                           &combine_abs_sin_sum_kern);
     if (!ret) goto free_kern_bin;
 
+    ret |= oclw_destroy_kernel_object(apply_coth_sqrt_kern);
 err_free_program_obj:
     ret |= oclw_destroy_program_object(ocl_program);
 err_free_cmd_queue:
@@ -229,6 +236,7 @@ exit:
 static int library_exit()
 {
     int ret = 0;
+    ret |= oclw_destroy_kernel_object(combine_abs_sin_sum_kern);
     ret |= oclw_destroy_kernel_object(apply_coth_sqrt_kern);
     ret |= oclw_destroy_program_object(ocl_program);
     ret |= oclw_destroy_cmd_queue(ocl_queue);

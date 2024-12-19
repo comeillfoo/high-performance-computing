@@ -80,21 +80,55 @@ int map_matrices(struct matrix* restrict srcp, struct matrix* restrict dstp,
                  combiner fn)
 {
     int ret = 0;
+    cl_kernel ocl_kern = NULL;
+    cl_mem src_mem = NULL, dst_mem = NULL;
     if (!srcp || !dstp) return -1;
     if (srcp->rows != dstp->rows || srcp->cols != dstp->cols)
         return -1;
 
-    for (size_t i = 0; i < dstp->rows; ++i)
-        for (size_t j = 0; j < dstp->cols; ++j) {
-            double a = 0.0;
-            double b = 0.0;
-            ret = double_matrix_get(srcp, i, j, &a);
-            if (ret) return ret;
-            ret = double_matrix_get(dstp, i, j, &b);
-            if (ret) return ret;
-            ret = double_matrix_set(dstp, i, j, fn(b, a));
-            if (ret) return ret;
-        }
+    if (fn == combine_abs_sin_sum)
+        ocl_kern = combine_abs_sin_sum_kern;
+    if (!ocl_context || !ocl_queue || !ocl_kern) return -1;
+
+    cl_event wevents[srcp->rows + dstp->rows];
+    cl_event cevent = NULL;
+    cl_event revents[dstp->rows];
+
+    ret = oclw_create_memobj(ocl_context, CL_MEM_READ_ONLY, &src_mem,
+                             sizeof(double) * srcp->rows * srcp->cols, NULL);
+    if (ret) goto exit;
+    ret = oclw_create_memobj(ocl_context, CL_MEM_READ_WRITE, &dst_mem,
+                             sizeof(double) * dstp->rows * dstp->cols, NULL);
+    if (ret) goto free_src_mem;
+    ret = oclw_set_kernel_arg(ocl_kern, 0, sizeof(cl_mem), &src_mem, "source");
+    if (ret) goto free_dst_mem;
+    ret = oclw_set_kernel_arg(ocl_kern, 1, sizeof(cl_mem), &dst_mem, "target");
+    if (ret) goto free_dst_mem;
+
+    // fill memory objects with matrices
+    ret = oclw_async_write_matrix(srcp, ocl_queue, src_mem, srcp->rows, wevents);
+    if (ret) goto free_dst_mem;
+    ret = oclw_async_write_matrix(dstp, ocl_queue, dst_mem, dstp->rows,
+                                  wevents + srcp->rows);
+    if (ret) goto free_dst_mem;
+
+    // run task on memory objects after writes
+    ret = oclw_async_run_task_after(ocl_queue, ocl_kern, srcp->rows * srcp->cols,
+                                    1, srcp->rows + dstp->rows, wevents, &cevent);
+    if (ret) goto free_dst_mem;
+
+    // read results into original matrix after completion
+    ret = oclw_async_read_matrix(dstp, ocl_queue, dst_mem, dstp->rows, revents,
+                                 &cevent);
+    if (ret) goto free_dst_mem;
+
+    // wait till everything is completed
+    ret = oclw_wait_till_completion(dstp->rows, revents);
+free_dst_mem:
+    ret |= oclw_destroy_memobj(dst_mem);
+free_src_mem:
+    ret |= oclw_destroy_memobj(src_mem);
+exit:
     return ret;
 }
 
