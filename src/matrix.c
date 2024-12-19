@@ -99,3 +99,47 @@ double* double_matrix_get_row_mut(struct matrix* matp, size_t row)
     }
     return NULL;
 }
+
+#ifdef USE_OPENCL
+int oclw_async_write_matrix(struct matrix* matp, cl_command_queue queue,
+                            cl_mem memobj, size_t num_events,
+                            cl_event events[num_events])
+{
+    int ret = 0;
+    if (!matp) return -1;
+    const size_t row_size = matp->cols * sizeof(double);
+    for (size_t i = 0; i < matp->rows; ++i) {
+        size_t off = sizeof(double) * matp->cols * i;
+        void* row = (void*)double_matrix_get_row_mut(matp, i);
+        if (!row) {
+            ret = -1;
+            break;
+        }
+        ret = oclw_async_write_memobj(queue, memobj, off, row_size, row,
+                                      &events[i]);
+        if (ret) break;
+    }
+    return ret;
+}
+
+int oclw_async_read_matrix(struct matrix* matp, cl_command_queue queue,
+                           cl_mem memobj, size_t num_revents,
+                           cl_event revents[num_revents], cl_event* ceventp)
+{
+    int ret = 0;
+    if (!matp) return -1;
+    const size_t row_size = matp->cols * sizeof(double);
+    for (size_t i = 0; i < matp->rows; ++i) {
+        size_t off = sizeof(double) * matp->cols * i;
+        void* row = double_matrix_get_row_mut(matp, i);
+        if (!row) {
+            ret = -1;
+            break;
+        }
+        ret = oclw_async_read_memobj_after(queue, memobj, off, row_size,
+                                           row, 1, ceventp, &revents[i]);
+        if (ret) break;
+    }
+    return ret;
+}
+#endif

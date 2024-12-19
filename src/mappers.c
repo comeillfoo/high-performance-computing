@@ -22,6 +22,7 @@ double combine_abs_sin_sum(double a, double b)
     return fabs(sin(a + b));
 }
 
+// #define USE_OPENCL
 #ifdef USE_OPENCL
 #include "oclw.h"
 
@@ -29,6 +30,7 @@ extern cl_context ocl_context;
 extern cl_command_queue ocl_queue;
 
 cl_kernel apply_coth_sqrt_kern = NULL;
+cl_kernel combine_abs_sin_sum_kern = NULL;
 
 
 int map_matrix(struct matrix* matp, applicator fn)
@@ -41,49 +43,30 @@ int map_matrix(struct matrix* matp, applicator fn)
 
     if (fn == apply_coth_sqrt)
         ocl_kern = apply_coth_sqrt_kern;
-    if (!ocl_kern) return -1;
+    if (!ocl_context || !ocl_queue || !ocl_kern) return -1;
 
     cl_event wevents[matp->rows];
     cl_event cevent = NULL;
     cl_event revents[matp->rows];
-    const size_t row_size = matp->cols * sizeof(double);
 
     ret = oclw_create_memobj(ocl_context, CL_MEM_READ_WRITE, &ocl_mem,
                              sizeof(double) * matp->rows * matp->cols, NULL);
     if (ret) goto exit;
     ret = oclw_set_kernel_arg(ocl_kern, 0, sizeof(cl_mem), &ocl_mem, "vector");
     if (ret) goto free_memobj;
-
     // fill memory object with rows
-    for (size_t i = 0; i < matp->rows; ++i) {
-        size_t off = sizeof(double) * matp->cols * i;
-        void* row = (void*)double_matrix_get_row_mut(matp, i);
-        if (!row) {
-            ret = -1;
-            goto free_memobj;
-        }
-        ret = oclw_async_write_memobj(ocl_queue, ocl_mem, off, row_size, row,
-                                      &wevents[i]);
-        if (ret) goto free_memobj;
-    }
+    ret = oclw_async_write_matrix(matp, ocl_queue, ocl_mem, matp->rows, wevents);
+    if (ret) goto free_memobj;
 
     // run task on memory object after writes
-    ret = oclw_async_run_task_after(ocl_queue, ocl_kern, matp->rows, 1,
-                                    matp->rows, wevents, &cevent);
+    ret = oclw_async_run_task_after(ocl_queue, ocl_kern, matp->rows * matp->cols,
+                                    1, matp->rows, wevents, &cevent);
     if (ret) goto free_memobj;
 
     // read results into original matrix after completion
-    for (size_t i = 0; i < matp->rows; ++i) {
-        size_t off = sizeof(double) * matp->cols * i;
-        void* row = double_matrix_get_row_mut(matp, i);
-        if (!row) {
-            ret = -1;
-            goto free_memobj;
-        }
-        ret = oclw_async_read_memobj_after(ocl_queue, ocl_mem, off, row_size,
-                                           row, 1, &cevent, &revents[i]);
-        if (ret) goto free_memobj;
-    }
+    ret = oclw_async_read_matrix(matp, ocl_queue, ocl_mem, matp->rows, revents,
+                                 &cevent);
+    if (ret) goto free_memobj;
 
     // wait till everything is completed
     ret = oclw_wait_till_completion(matp->rows, revents);

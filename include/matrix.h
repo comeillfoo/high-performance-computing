@@ -27,4 +27,14 @@ int double_matrix_set(struct matrix* matp, size_t row, size_t col,
                       double value);
 double* double_matrix_get_row_mut(struct matrix* matp, size_t row);
 
+#ifdef USE_OPENCL
+#include "oclw.h"
+int oclw_async_write_matrix(struct matrix* matp, cl_command_queue queue,
+                            cl_mem memobj, size_t num_events,
+                            cl_event events[num_events]);
+int oclw_async_read_matrix(struct matrix* matp, cl_command_queue queue,
+                           cl_mem memobj, size_t num_revents,
+                           cl_event revents[num_revents], cl_event* ceventp);
+#endif
+
 #endif // _MATRIX_H_
