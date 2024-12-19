@@ -151,6 +151,7 @@ cl_program ocl_program = NULL;
 
 extern cl_kernel apply_coth_sqrt_kern;
 extern cl_kernel combine_abs_sin_sum_kern;
+extern cl_kernel shift_matrices_kern;
 
 
 static int library_init()
@@ -215,8 +216,13 @@ static int library_init()
 
     ret = oclw_create_kernobj_for_function("combine_abs_sin_sum", ocl_program,
                                            &combine_abs_sin_sum_kern);
+    if (ret) goto err_free_apply_coth_sqrt;
+    ret = oclw_create_kernobj_for_function("shift_matrices", ocl_program,
+                                           &shift_matrices_kern);
     if (!ret) goto free_kern_bin;
 
+    ret |= oclw_destroy_kernel_object(shift_matrices_kern);
+err_free_apply_coth_sqrt:
     ret |= oclw_destroy_kernel_object(apply_coth_sqrt_kern);
 err_free_program_obj:
     ret |= oclw_destroy_program_object(ocl_program);
@@ -236,6 +242,7 @@ exit:
 static int library_exit()
 {
     int ret = 0;
+    ret |= oclw_destroy_kernel_object(shift_matrices_kern);
     ret |= oclw_destroy_kernel_object(combine_abs_sin_sum_kern);
     ret |= oclw_destroy_kernel_object(apply_coth_sqrt_kern);
     ret |= oclw_destroy_program_object(ocl_program);

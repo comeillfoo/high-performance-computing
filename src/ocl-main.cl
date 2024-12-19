@@ -12,6 +12,16 @@ kernel void combine_abs_sin_sum(global const double* source, global double* targ
     target[gid] = fabs(sin(target[gid] + source[gid]));
 }
 
+kernel void shift_matrices(global const double* source, global double* target,
+                           unsigned long shift)
+{
+    unsigned long i = get_global_id(0);
+    unsigned long j = get_global_id(1);
+    unsigned long rows = get_global_size(0);
+    unsigned long cols = get_global_size(1);
+    target[i * cols + (j + shift) % cols] = source[i * cols + j];
+}
+
 kernel void filter_fold(double min, unsigned long M, constant double* M2,
                         global double* X)
 {
