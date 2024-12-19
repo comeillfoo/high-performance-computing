@@ -1,9 +1,6 @@
-#include <stdio.h>
-#include <inttypes.h>
-
 #include "oclw.h"
 
-static const char* oclw_error_msg(cl_int errno)
+const char* oclw_error_msg(cl_int errno)
 {
     switch (errno) {
     case CL_BUILD_PROGRAM_FAILURE: return "build program failure";
@@ -28,10 +25,6 @@ static const char* oclw_error_msg(cl_int errno)
     default: return "undefined error code";
     }
 }
-
-#define oclw_error(errno, message) \
-    fprintf(stderr, "OCLW:ERROR[%"PRId32"]: %s: %s at %s:%s:%d\n", (errno), \
-            (message), oclw_error_msg(errno), __FILE__, __func__, __LINE__)
 
 int oclw_get_default_platform(cl_platform_id* platform_id)
 {

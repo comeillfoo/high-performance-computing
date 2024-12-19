@@ -2,6 +2,13 @@
 #define _OCLW_H_
 
 #include <CL/cl.h>
+#include <stdio.h>
+#include <inttypes.h>
+
+const char* oclw_error_msg(cl_int errno);
+#define oclw_error(errno, message) \
+    fprintf(stderr, "OCLW:ERROR[%"PRId32"]: %s: %s at %s:%s:%d\n", (errno), \
+            (message), oclw_error_msg(errno), __FILE__, __func__, __LINE__)
 
 int oclw_get_default_platform(cl_platform_id* platform_id);
 int oclw_get_default_device(cl_platform_id platform_id, cl_device_id* device_id);
