@@ -9,7 +9,85 @@ double merge_by_pow(double a, double b)
 
 #define MIN(a, b) (((a) < (b))? (a) : (b))
 
-#ifdef USE_PTHREAD
+#ifdef USE_OPENCL
+#include "oclw.h"
+
+extern cl_context ocl_context;
+extern cl_command_queue ocl_queue;
+
+cl_kernel merge_by_pow_kern = NULL;
+
+
+int merge_matrices(struct matrix* restrict srcp, struct matrix* restrict dstp,
+                   merger fn)
+{
+    int ret = 0;
+    cl_mem src_mem = NULL, dst_mem = NULL;
+    cl_kernel ocl_kern = NULL;
+    if (!srcp || !dstp) return -1;
+    const size_t rows = MIN(srcp->rows, dstp->rows);
+    const size_t cols = MIN(srcp->cols, dstp->cols);
+    if (!rows || !cols) return 0;
+
+    if (fn == merge_by_pow)
+        ocl_kern = merge_by_pow_kern;
+    if (!ocl_context || !ocl_queue || !ocl_kern) return -1;
+
+    cl_event wevents[rows << 1];
+    cl_event cevent = NULL;
+    cl_event revents[rows];
+
+    ret = oclw_create_memobj(ocl_context, CL_MEM_READ_ONLY, &src_mem, rows *
+                             srcp->cols * sizeof(double), NULL);
+    if (ret) goto exit;
+    ret = oclw_create_memobj(ocl_context, CL_MEM_READ_WRITE, &dst_mem, rows *
+                             dstp->cols * sizeof(double), NULL);
+    if (ret) goto free_src_mem;
+    ret = oclw_set_kernel_arg(ocl_kern, 0, sizeof(srcp->cols), &srcp->cols,
+                              "src_cols");
+    if (ret) goto free_dst_mem;
+    ret = oclw_set_kernel_arg(ocl_kern, 1, sizeof(cl_mem), &src_mem, "source");
+    if (ret) goto free_dst_mem;
+    ret = oclw_set_kernel_arg(ocl_kern, 2, sizeof(dstp->cols), &dstp->cols,
+                              "dst_cols");
+    if (ret) goto free_dst_mem;
+    ret = oclw_set_kernel_arg(ocl_kern, 3, sizeof(cl_mem), &dst_mem, "target");
+    if (ret) goto free_dst_mem;
+
+    // fill memory objects with matrices
+    ret = oclw_async_write_matrix(srcp, ocl_queue, src_mem, rows, wevents);
+    if (ret) goto free_dst_mem;
+    ret = oclw_async_write_matrix(dstp, ocl_queue, dst_mem, rows, wevents + rows);
+    if (ret) goto free_dst_mem;
+
+    // run task on memory objects after writes
+    const size_t global_work_size[2] = { rows, cols };
+    const size_t local_work_size[2] = { 1, 1 };
+    cl_int cl_ret = clEnqueueNDRangeKernel(ocl_queue, merge_by_pow_kern, 2,
+                                           NULL, global_work_size,
+                                           local_work_size, rows << 1, wevents,
+                                           &cevent);
+    if (cl_ret != CL_SUCCESS) {
+        oclw_error(cl_ret, "Unable to merge matrices");
+        ret = -1;
+    }
+    if (ret) goto free_dst_mem;
+    if (ret) goto free_dst_mem;
+
+    // read results into original matrix after completion
+    ret = oclw_async_read_matrix(dstp, ocl_queue, dst_mem, rows, revents, &cevent);
+    if (ret) goto free_dst_mem;
+
+    // wait till everything is completed
+    ret = oclw_wait_till_completion(rows, revents);
+free_dst_mem:
+    ret |= oclw_destroy_memobj(dst_mem);
+free_src_mem:
+    ret |= oclw_destroy_memobj(src_mem);
+exit:
+    return ret;
+}
+#elif defined(USE_PTHREAD)
 #include <stdint.h>
 #include "ptpool.h"
 extern struct ptpool* pool;
