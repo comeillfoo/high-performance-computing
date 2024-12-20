@@ -72,7 +72,6 @@ int merge_matrices(struct matrix* restrict srcp, struct matrix* restrict dstp,
         ret = -1;
     }
     if (ret) goto free_dst_mem;
-    if (ret) goto free_dst_mem;
 
     // read results into original matrix after completion
     ret = oclw_async_read_matrix(dstp, ocl_queue, dst_mem, rows, revents, &cevent);
