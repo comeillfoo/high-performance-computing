@@ -39,9 +39,25 @@ kernel void merge_by_pow(unsigned long src_cols, global const double* source,
 }
 
 // ===============
+// multipliers kernels
+// ===============
+kernel void multiply(const unsigned long Acols, global const double* A,
+                     global const double* B, global double* C)
+{
+    unsigned long i = get_global_id(0);
+    unsigned long j = get_global_id(1);
+    unsigned long Bcols = get_global_size(1);
+    private double tmp = 0.0;
+    for (unsigned long k = 0; k < Acols; ++k)
+        tmp += A[i * Acols + k] * B[k * Bcols + j];
+    C[i * Bcols + j] = tmp;
+    // printf("OCL[%zu, %zu]: %F\n", i, j, C[i * Bcols + j]);
+}
+
+// ===============
 // reducers kernels
 // ===============
-kernel void reduce(unsigned long size, global double* matrix, global double* psums)
+kernel void reduce(unsigned long size, global const double* matrix, global double* psums)
 {
     unsigned long i = get_global_id(0);
     private double minimum = 0.0;
