@@ -258,6 +258,11 @@ int oclw_wait_till_completion(cl_uint num_events, cl_event events[num_events])
 {
     cl_int cl_ret = 0;
     cl_int event_status;
+    // cl_ret = clWaitForEvents(num_events, events);
+    // if (cl_ret != CL_SUCCESS) {
+    //     oclw_error(cl_ret, "Unable to wait for events");
+    //     return 1;
+    // }
     for (cl_uint i = 0; i < num_events; ++i) {
         do {
             cl_ret = oclw_query_event_status(events[i], &event_status);
