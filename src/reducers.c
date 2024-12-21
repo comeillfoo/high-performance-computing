@@ -37,7 +37,7 @@ int reduce(struct matrix* matp, double* reduction)
     ret = oclw_create_memobj(ocl_context, CL_MEM_READ_ONLY, &mat_mem, matp->rows
                              * matp->cols * sizeof(double), NULL);
     if (ret) goto exit;
-    ret = oclw_create_memobj(ocl_context, CL_MEM_READ_WRITE, &psums_mem, matp->rows
+    ret = oclw_create_memobj(ocl_context, CL_MEM_WRITE_ONLY, &psums_mem, matp->rows
                              * sizeof(double), NULL);
     if (ret) goto free_mat_mem;
     ret = oclw_set_kernel_arg(reduce_kern, 0, sizeof(matp->cols), &matp->cols,
