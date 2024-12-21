@@ -38,14 +38,19 @@ kernel void merge_by_pow(unsigned long src_cols, global const double* source,
     target[ti] = pow(source[si], target[ti]);
 }
 
-kernel void filter_fold(double min, unsigned long M, constant double* M2,
-                        global double* X)
+// ===============
+// reducers
+// ===============
+kernel void reduce(unsigned long size, global double* matrix, global double* psums,
+                   global double* mins)
 {
-    private double acc;
-    acc = 0.0;
-    for (unsigned long i = 0; i < M; ++i)
-        acc += convert_double(1 - (convert_uint(M2[i] / min) % 2)) * sin(M2[i]);
-    *X = acc;
+    unsigned long i = get_global_id(0);
+    psums[i] = 0.0;
+    for (unsigned long j = 0; j < size; ++j) {
+        double value = matrix[i * size + j];
+        psums[i] += convert_double(1 - (convert_uint(value / mins[i]) % 2)) * sin(value);
+    }
+    // printf("OCL[%zu]: %F\n", i, psums[i]);
 }
 
 // source: https://math.stackexchange.com/a/67495

@@ -155,6 +155,8 @@ extern cl_kernel combine_abs_sin_sum_kern;
 extern cl_kernel shift_matrices_kern;
 // mergers
 extern cl_kernel merge_by_pow_kern;
+// reducers
+extern cl_kernel reduce_kern;
 
 
 static int library_init()
@@ -225,8 +227,13 @@ static int library_init()
     // init mergers kernels
     ret = oclw_create_kernobj_for_function("merge_by_pow", ocl_program,
                                            &merge_by_pow_kern);
+    if (ret) goto err_free_shift_matrices;
+    // init reducers kernels
+    ret = oclw_create_kernobj_for_function("reduce", ocl_program, &reduce_kern);
     if (!ret) goto free_kern_bin;
 
+    // ret |= oclw_destroy_kernel_object(reduce_kern);
+err_free_shift_matrices:
     ret |= oclw_destroy_kernel_object(shift_matrices_kern);
 err_free_combine_abs_sin_sum:
     ret |= oclw_destroy_kernel_object(combine_abs_sin_sum_kern);
@@ -250,6 +257,7 @@ exit:
 static int library_exit()
 {
     int ret = 0;
+    ret |= oclw_destroy_kernel_object(reduce_kern);
     ret |= oclw_destroy_kernel_object(merge_by_pow_kern);
     ret |= oclw_destroy_kernel_object(shift_matrices_kern);
     ret |= oclw_destroy_kernel_object(combine_abs_sin_sum_kern);
