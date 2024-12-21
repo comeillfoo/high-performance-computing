@@ -1,4 +1,5 @@
 #include "matrix.h"
+#include <stdio.h>
 
 
 int double_matrix_create(size_t rows, size_t cols, enum matrix_type type,
@@ -142,3 +143,19 @@ int oclw_async_read_matrix(struct matrix* matp, cl_command_queue queue,
     return ret;
 }
 #endif
+
+int double_matrix_debug(struct matrix* matp)
+{
+    int ret = 0;
+    if (!matp) return -1;
+    for (size_t i = 0; i < matp->rows; ++i) {
+        for (size_t j = 0; j < matp->cols; ++j) {
+            double value = 0.0;
+            ret = double_matrix_get(matp, i, j, &value);
+            if (ret) return -1;
+            printf(" %lf", value);
+        }
+        printf("\n");
+    }
+    return ret;
+}

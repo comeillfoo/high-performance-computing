@@ -35,5 +35,6 @@ int oclw_async_read_matrix(struct matrix* matp, cl_command_queue queue,
                            cl_mem memobj, size_t rows, cl_event revents[rows],
                            cl_event* ceventp);
 #endif
+int double_matrix_debug(struct matrix* matp);
 
 #endif // _MATRIX_H_
