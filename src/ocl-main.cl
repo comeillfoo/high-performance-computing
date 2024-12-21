@@ -39,7 +39,7 @@ kernel void merge_by_pow(unsigned long src_cols, global const double* source,
 }
 
 // ===============
-// reducers
+// reducers kernels
 // ===============
 kernel void reduce(unsigned long size, global double* matrix, global double* psums)
 {
@@ -51,11 +51,12 @@ kernel void reduce(unsigned long size, global double* matrix, global double* psu
     }
     if (minimum == 0.0) return;
 
-    psums[i] = 0.0;
+    private double psum = 0.0;
     for (unsigned long j = 0; j < size; ++j) {
         double value = matrix[i * size + j];
-        psums[i] += convert_double(1 - (convert_uint(value / minimum) % 2)) * sin(value);
+        psum += convert_double(1 - (convert_uint(value / minimum) % 2)) * sin(value);
     }
+    psums[i] = psum;
     // printf("OCL[%zu]: %F\n", i, psums[i]);
 }
 
