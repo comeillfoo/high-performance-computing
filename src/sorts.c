@@ -10,6 +10,7 @@ static inline void swap(uint_least64_t* restrict a,
     *a ^= *b;
 }
 
+#ifndef USE_OPENCL
 // https://www.geeksforgeeks.org/selection-sort-algorithm-2/
 static int selection_sort(size_t size, double* array)
 {
@@ -24,8 +25,72 @@ static int selection_sort(size_t size, double* array)
     }
     return 0;
 }
+#endif
 
-#ifdef USE_PTHREAD
+// #define USE_OPENCL
+#ifdef USE_OPENCL
+#include "oclw.h"
+
+extern cl_context ocl_context;
+extern cl_command_queue ocl_queue;
+
+cl_kernel selection_sort_kern = NULL;
+
+#ifdef PARALLEL_SORT_ONLY_ROWS
+#define SELECTION_SORT_LOCAL_SIZE (1)
+#else
+#define SELECTION_SORT_LOCAL_SIZE (2)
+#endif
+int sort_rows(struct matrix* matp)
+{
+    int ret = 0;
+    cl_mem ocl_mem = NULL;
+    if (!matp) return -1;
+    if (!matp->rows || !matp->cols) return 0;
+    if (!ocl_context || !ocl_queue || !selection_sort_kern) return -1;
+
+    cl_event wevents[matp->rows];
+    cl_event cevent = NULL;
+    cl_event revents[matp->rows];
+
+    ret = oclw_create_memobj(ocl_context, CL_MEM_READ_WRITE, &ocl_mem, matp->rows
+                             * matp->cols * sizeof(double), NULL);
+    if (ret) goto exit;
+    ret = oclw_set_kernel_arg(selection_sort_kern, 0, sizeof(matp->cols),
+                              &matp->cols, "size");
+    if (ret) goto free_memobj;
+    ret = oclw_set_kernel_arg(selection_sort_kern, 1, sizeof(cl_mem), &ocl_mem,
+                              "matrix");
+    if (ret) goto free_memobj;
+#ifndef PARALLEL_SORT_ONLY_ROWS
+    ret = oclw_set_kernel_arg(selection_sort_kern, 2, sizeof(double) * matp->cols,
+                              NULL, "halves");
+    if (ret) goto free_memobj;
+#endif
+    // fill memory object with rows
+    ret = oclw_async_write_matrix(matp, ocl_queue, ocl_mem, matp->rows, wevents);
+    if (ret) goto free_memobj;
+
+    // run task on memory object after writes
+    ret = oclw_async_run_task_after(ocl_queue, selection_sort_kern, matp->rows,
+                                    SELECTION_SORT_LOCAL_SIZE, matp->rows, wevents,
+                                    &cevent);
+    if (ret) goto free_memobj;
+
+    // read results into original matrix after completion
+    ret = oclw_async_read_matrix(matp, ocl_queue, ocl_mem, matp->rows, revents,
+                                 &cevent);
+    if (ret) goto free_memobj;
+
+    // wait till everything is completed
+    ret = oclw_wait_till_completion(matp->rows, revents);
+free_memobj:
+    ret |= oclw_destroy_memobj(ocl_mem);
+exit:
+    return ret;
+}
+#undef SELECTION_SORT_LOCAL_SIZE
+#elif defined(USE_PTHREAD)
 #include "ptpool.h"
 extern struct ptpool* pool;
 
@@ -122,17 +187,7 @@ static void* _rowsort_routine(void* args)
     int ret = 0;
     struct _rowsort_args* targs = (struct _rowsort_args*)args;
     struct matrix* matp = targs->matp;
-    const size_t i = targs->row;
-    switch (matp->type) {
-    case MT_VECTOR:
-        ret = sort_cols(matp->cols, matp->as_vector + (i * matp->cols));
-        break;
-    case MT_TABLE:
-        ret = sort_cols(matp->cols, matp->as_table[i]);
-        break;
-    default:
-        break;
-    }
+    ret = sort_cols(matp->cols, double_matrix_get_row_mut(matp, targs->row));
     return (void*) ((intptr_t) ret);
 }
 
@@ -219,18 +274,8 @@ int sort_rows(struct matrix* matp)
 {
     if (!matp) return -1;
     #pragma omp parallel for default(none) shared(matp) schedule(runtime)
-    for (size_t i = 0; i < matp->rows; ++i) {
-        switch (matp->type) {
-        case MT_VECTOR:
-            sort_cols(matp->cols, matp->as_vector + (i * matp->cols));
-            break;
-        case MT_TABLE:
-            sort_cols(matp->cols, matp->as_table[i]);
-            break;
-        default:
-            break;
-        }
-    }
+    for (size_t i = 0; i < matp->rows; ++i)
+        sort_cols(matp->cols, double_matrix_get_row_mut(matp, i));
     return 0;
 }
 #else
@@ -239,16 +284,7 @@ int sort_rows(struct matrix* matp)
     int ret = 0;
     if (!matp) return -1;
     for (size_t i = 0; i < matp->rows; ++i) {
-        switch (matp->type) {
-        case MT_VECTOR:
-            ret = selection_sort(matp->cols, matp->as_vector + (i * matp->cols));
-            break;
-        case MT_TABLE:
-            ret = selection_sort(matp->cols, matp->as_table[i]);
-            break;
-        default:
-            break;
-        }
+        ret = selection_sort(matp->cols, double_matrix_get_row_mut(matp, i));
         if (ret) return ret;
     }
     return ret;

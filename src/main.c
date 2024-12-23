@@ -157,6 +157,13 @@ extern cl_kernel shift_matrices_kern;
 extern cl_kernel merge_by_pow_kern;
 // multipliers
 extern cl_kernel multiply_kern;
+// sorts
+extern cl_kernel selection_sort_kern;
+#ifdef PARALLEL_SORT_ONLY_ROWS
+#define SELECTION_SORT_KERNEL_NAME ("selection_sort_only_row")
+#else
+#define SELECTION_SORT_KERNEL_NAME ("selection_sort_halves")
+#endif
 // reducers
 extern cl_kernel reduce_kern;
 
@@ -234,11 +241,17 @@ static int library_init()
     ret = oclw_create_kernobj_for_function("multiply", ocl_program,
                                            &multiply_kern);
     if (ret) goto err_free_merge_by_pow;
+    // init sorts kernels
+    ret = oclw_create_kernobj_for_function(SELECTION_SORT_KERNEL_NAME, ocl_program,
+                                           &selection_sort_kern);
+    if (ret) goto err_free_multiply;
     // init reducers kernels
     ret = oclw_create_kernobj_for_function("reduce", ocl_program, &reduce_kern);
     if (!ret) goto free_kern_bin;
 
     // ret |= oclw_destroy_kernel_object(reduce_kern);
+    ret |= oclw_destroy_kernel_object(selection_sort_kern);
+err_free_multiply:
     ret |= oclw_destroy_kernel_object(multiply_kern);
 err_free_merge_by_pow:
     ret |= oclw_destroy_kernel_object(merge_by_pow_kern);
@@ -267,6 +280,7 @@ static int library_exit()
 {
     int ret = 0;
     ret |= oclw_destroy_kernel_object(reduce_kern);
+    ret |= oclw_destroy_kernel_object(selection_sort_kern);
     ret |= oclw_destroy_kernel_object(multiply_kern);
     ret |= oclw_destroy_kernel_object(merge_by_pow_kern);
     ret |= oclw_destroy_kernel_object(shift_matrices_kern);

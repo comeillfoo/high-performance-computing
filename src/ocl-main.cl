@@ -55,6 +55,81 @@ kernel void multiply(const unsigned long Acols, global const double* A,
 }
 
 // ===============
+// sorts kernels
+// ===============
+kernel void selection_sort_only_row(unsigned long size, global double* matrix)
+{
+    unsigned long row = get_global_id(0);
+    for (unsigned long i = 0; i < size - 1; ++i) {
+        private unsigned long mini = i;
+        private double tmp = matrix[row * size + i];
+        for (unsigned long j = i + 1; j < size; ++j)
+            if (matrix[row * size + j] < matrix[row * size + mini])
+                mini = j;
+        matrix[row * size + i] = matrix[row * size + mini];
+        matrix[row * size + mini] = tmp;
+    }
+}
+
+void selection_sort_half(unsigned long size, local double* halves)
+{
+    for (unsigned long i = 0; i < size - 1; ++i) {
+        private unsigned long mini = i;
+        private double tmp = halves[i];
+        for (unsigned long j = i + 1; j < size; ++j)
+            if (halves[j] < halves[mini])
+                mini = j;
+        halves[i] = halves[mini];
+        halves[mini] = tmp;
+    }
+}
+
+kernel void selection_sort_halves(unsigned long size, global double* matrix,
+                                  local double* halves)
+{
+    unsigned long row = get_global_id(0);
+    unsigned long half_nr = get_local_id(0);
+    unsigned long first = size / 2;
+    unsigned long rest = size - first;
+    if (half_nr < 1) {
+        for (unsigned long i = 0; i < first; ++i)
+            halves[i] = matrix[row * size + i];
+        selection_sort_half(first, halves);
+    } else {
+        for (unsigned long i = 0; i < rest; ++i)
+            halves[i + first] = matrix[row * size + i + first];
+        selection_sort_half(rest, halves + first);
+    }
+
+    barrier(CLK_LOCAL_MEM_FENCE);
+
+    if (half_nr < 1) {
+        private unsigned int i = 0;
+        private unsigned int j = first;
+        private unsigned int k = 0;
+        while (i < first && j < size) {
+            if (halves[i] < halves[j]) {
+                matrix[row * size + k] = halves[i];
+                ++i; ++k;
+                continue;
+            }
+            matrix[row * size + k] = halves[j];
+            ++j; ++k;
+        }
+
+        while (i < first) {
+            matrix[row * size + k] = halves[i];
+            ++i; ++k;
+        }
+
+        while (j < size) {
+            matrix[row * size + k] = halves[j];
+            ++j; ++k;
+        }
+    }
+}
+
+// ===============
 // reducers kernels
 // ===============
 kernel void reduce(unsigned long size, global const double* matrix, global double* psums)
