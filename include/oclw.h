@@ -60,16 +60,16 @@ int oclw_async_read_memobj(cl_command_queue queue, cl_mem mem, size_t off,
                            size_t size, void* ptr, cl_event* event);
 
 int oclw_sync_run_task_after(cl_command_queue queue, cl_kernel kernel,
-                             size_t global_size, size_t local_size,
+                             size_t global_size, size_t* local_size,
                              cl_uint num_events, cl_event events[num_events]);
 int oclw_sync_run_task(cl_command_queue queue, cl_kernel kernel,
-                       size_t global_size, size_t local_size);
+                       size_t global_size, size_t* local_size);
 int oclw_async_run_task_after(cl_command_queue queue, cl_kernel kernel,
-                              size_t global_size, size_t local_size,
+                              size_t global_size, size_t* local_size,
                               cl_uint num_events, cl_event events[num_events],
                               cl_event* event);
 int oclw_async_run_task(cl_command_queue queue, cl_kernel kernel,
-                        size_t global_size, size_t local_size, cl_event* event);
+                        size_t global_size, size_t* local_size, cl_event* event);
 
 int oclw_set_kernel_arg(cl_kernel kernel, cl_uint index, size_t arg_size,
                         void* arg_value, const char* arg_name);

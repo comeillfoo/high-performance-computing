@@ -53,7 +53,7 @@ int reduce(struct matrix* matp, double* reduction)
     if (ret) goto free_psums_mem;
 
     // run task on memory object after writes
-    ret = oclw_async_run_task_after(ocl_queue, reduce_kern, matp->rows, 1,
+    ret = oclw_async_run_task_after(ocl_queue, reduce_kern, matp->rows, NULL,
                                     matp->rows, wevents, &cevent);
     if (ret) goto free_psums_mem;
 

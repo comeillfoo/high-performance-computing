@@ -62,11 +62,9 @@ int merge_matrices(struct matrix* restrict srcp, struct matrix* restrict dstp,
 
     // run task on memory objects after writes
     const size_t global_work_size[2] = { rows, cols };
-    const size_t local_work_size[2] = { 1, 1 };
     cl_int cl_ret = clEnqueueNDRangeKernel(ocl_queue, merge_by_pow_kern, 2,
-                                           NULL, global_work_size,
-                                           local_work_size, rows << 1, wevents,
-                                           &cevent);
+                                           NULL, global_work_size, NULL,
+                                           rows << 1, wevents, &cevent);
     if (cl_ret != CL_SUCCESS) {
         oclw_error(cl_ret, "Unable to merge matrices");
         ret = -1;

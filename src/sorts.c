@@ -36,11 +36,7 @@ extern cl_command_queue ocl_queue;
 
 cl_kernel selection_sort_kern = NULL;
 
-#ifdef PARALLEL_SORT_ONLY_ROWS
-#define SELECTION_SORT_LOCAL_SIZE (1)
-#else
-#define SELECTION_SORT_LOCAL_SIZE (2)
-#endif
+
 int sort_rows(struct matrix* matp)
 {
     int ret = 0;
@@ -73,8 +69,7 @@ int sort_rows(struct matrix* matp)
 
     // run task on memory object after writes
     ret = oclw_async_run_task_after(ocl_queue, selection_sort_kern, matp->rows,
-                                    SELECTION_SORT_LOCAL_SIZE, matp->rows, wevents,
-                                    &cevent);
+                                    NULL, matp->rows, wevents, &cevent);
     if (ret) goto free_memobj;
 
     // read results into original matrix after completion
@@ -89,7 +84,6 @@ free_memobj:
 exit:
     return ret;
 }
-#undef SELECTION_SORT_LOCAL_SIZE
 #elif defined(USE_PTHREAD)
 #include "ptpool.h"
 extern struct ptpool* pool;

@@ -51,10 +51,9 @@ int multiply_matrices(struct matrix* restrict A, struct matrix* restrict B,
 
     // run task on memory objects after writes
     const size_t global_work_size[2] = { A->rows, B->cols };
-    const size_t local_work_size[2] = { 1, 1 };
     cl_int cl_ret = clEnqueueNDRangeKernel(ocl_queue, multiply_kern, 2, NULL,
-                                           global_work_size, local_work_size,
-                                           A->rows + B->rows, wevents, &cevent);
+                                           global_work_size, NULL, A->rows +
+                                           B->rows, wevents, &cevent);
     if (cl_ret != CL_SUCCESS) {
         oclw_error(cl_ret, "Unable to multiply matrices");
         ret = -1;

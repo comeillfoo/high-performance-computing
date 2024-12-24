@@ -61,7 +61,7 @@ int map_matrix(struct matrix* matp, applicator fn)
 
     // run task on memory object after writes
     ret = oclw_async_run_task_after(ocl_queue, ocl_kern, matp->rows * matp->cols,
-                                    1, matp->rows, wevents, &cevent);
+                                    NULL, matp->rows, wevents, &cevent);
     if (ret) goto free_memobj;
 
     // read results into original matrix after completion
@@ -115,7 +115,7 @@ int map_matrices(struct matrix* restrict srcp, struct matrix* restrict dstp,
 
     // run task on memory objects after writes
     ret = oclw_async_run_task_after(ocl_queue, ocl_kern, srcp->rows * srcp->cols,
-                                    1, srcp->rows + dstp->rows, wevents, &cevent);
+                                    NULL, srcp->rows + dstp->rows, wevents, &cevent);
     if (ret) goto free_dst_mem;
 
     // read results into original matrix after completion
@@ -170,11 +170,9 @@ int shift_matrices(struct matrix* restrict srcp, struct matrix* restrict dstp,
 
     // run task on memory objects after writes
     const size_t global_work_size[2] = { srcp->rows, srcp->cols };
-    const size_t local_work_size[2] = { 1, 1 };
     cl_int cl_ret = clEnqueueNDRangeKernel(ocl_queue, shift_matrices_kern, 2,
-                                           NULL, global_work_size,
-                                           local_work_size, srcp->rows, wevents,
-                                           &cevent);
+                                           NULL, global_work_size, NULL,
+                                           srcp->rows, wevents, &cevent);
     if (cl_ret != CL_SUCCESS) {
         oclw_error(cl_ret, "Unable to shift matrices");
         ret = -1;

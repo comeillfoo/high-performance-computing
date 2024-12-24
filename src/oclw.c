@@ -329,12 +329,12 @@ int oclw_async_read_memobj(cl_command_queue queue, cl_mem mem, size_t off,
 }
 
 int oclw_sync_run_task_after(cl_command_queue queue, cl_kernel kernel,
-                             size_t global_size, size_t local_size,
+                             size_t global_size, size_t* local_size,
                              cl_uint num_events, cl_event events[num_events])
 {
     cl_event event;
     cl_int cl_ret = clEnqueueNDRangeKernel(queue, kernel, 1, NULL, &global_size,
-                                           &local_size, num_events, events,
+                                           local_size, num_events, events,
                                            &event);
     if (cl_ret != CL_SUCCESS) {
         oclw_error(cl_ret, "Unable to run task");
@@ -344,25 +344,25 @@ int oclw_sync_run_task_after(cl_command_queue queue, cl_kernel kernel,
 }
 
 int oclw_sync_run_task(cl_command_queue queue, cl_kernel kernel,
-                       size_t global_size, size_t local_size)
+                       size_t global_size, size_t* local_size)
 {
     return oclw_sync_run_task_after(queue, kernel, global_size, local_size, 0, NULL);
 }
 
 int oclw_async_run_task_after(cl_command_queue queue, cl_kernel kernel,
-                              size_t global_size, size_t local_size,
+                              size_t global_size, size_t* local_size,
                               cl_uint num_events, cl_event events[num_events],
                               cl_event* event)
 {
     cl_int cl_ret = clEnqueueNDRangeKernel(queue, kernel, 1, NULL, &global_size,
-                                           &local_size, num_events, events, event);
+                                           local_size, num_events, events, event);
     if (cl_ret == CL_SUCCESS) return 0;
     oclw_error(cl_ret, "Unable to run task");
     return 1;
 }
 
 int oclw_async_run_task(cl_command_queue queue, cl_kernel kernel,
-                        size_t global_size, size_t local_size, cl_event* event)
+                        size_t global_size, size_t* local_size, cl_event* event)
 {
     return oclw_async_run_task_after(queue, kernel, global_size, local_size, 0,
                                      NULL, event);

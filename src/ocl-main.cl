@@ -92,10 +92,12 @@ kernel void selection_sort_halves(unsigned long size, global double* matrix,
     unsigned long first = size / 2;
     unsigned long rest = size - first;
     if (half_nr < 1) {
+        // printf("OCL[%zu:%zu]: sorts [%zu; %zu]\n", row, half_nr, 0UL, first - 1);
         for (unsigned long i = 0; i < first; ++i)
             halves[i] = matrix[row * size + i];
         selection_sort_half(first, halves);
     } else {
+        // printf("OCL[%zu:%zu]: sorts [%zu; %zu]\n", row, half_nr, first, size - 1);
         for (unsigned long i = 0; i < rest; ++i)
             halves[i + first] = matrix[row * size + i + first];
         selection_sort_half(rest, halves + first);
