@@ -87,8 +87,8 @@ void selection_sort_half(unsigned long size, local double* halves)
 kernel void selection_sort_halves(unsigned long size, global double* matrix,
                                   local double* halves)
 {
-    unsigned long row = get_global_id(0);
-    unsigned long half_nr = get_local_id(0);
+    unsigned long row = get_global_id(0) / 2;
+    unsigned long half_nr = get_global_id(0) % 2;
     unsigned long first = size / 2;
     unsigned long rest = size - first;
     if (half_nr < 1) {
