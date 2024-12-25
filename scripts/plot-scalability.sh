@@ -12,14 +12,22 @@ Plots scalability from CSV-table
 
 Options:
     -h, --help       Prints this help message
+    -t, --title      Set custom title
 EOF
     exit 22 # EINVAL: Invalid argument
 }
+
+# @brief plot title
+plot_title=''
 
 while true; do
     case $1 in
         -h|--help)
             usage
+            ;;
+        -t|--title)
+            plot_title="$2"
+            shift 2
             ;;
         *)
             break
@@ -33,36 +41,37 @@ done
 csvtable="$1"
 set -ueo pipefail
 
-# @brief sorting parallelization
-sort_impl=$(case "${csvtable}" in
-    (*RO*)
-        echo 'только по строкам'
-        ;;
-    (*RC*)
-        echo 'по строкам и столбцам'
-        ;;
-    (*)
-        echo 'Unable to determine sorting parallelization'
-        exit 1
-        ;;
-esac)
+if [ -z "${plot_title}" ]; then
+    # @brief sorting parallelization
+    sort_impl=$(case "${csvtable}" in
+        (*RO*)
+            echo 'только по строкам'
+            ;;
+        (*RC*)
+            echo 'по строкам и столбцам'
+            ;;
+        (*)
+            echo 'Unable to determine sorting parallelization'
+            exit 1
+            ;;
+    esac)
 
-# @brief matrices implementation
-matrices_impl=$(case "${csvtable}" in
-    (*table*)
-        echo 'двумерный массив'
-        ;;
-    (*vector*)
-        echo 'одномерный массив'
-        ;;
-    (*)
-        echo 'Unable to determine matrices implementation'
-        exit 1
-        ;;
-esac)
+    # @brief matrices implementation
+    matrices_impl=$(case "${csvtable}" in
+        (*table*)
+            echo 'двухмерный массив'
+            ;;
+        (*vector*)
+            echo 'одномерный массив'
+            ;;
+        (*)
+            echo 'Unable to determine matrices implementation'
+            exit 1
+            ;;
+    esac)
 
-# @brief plot title
-plot_title=$(echo "Исследование масштабируемости при\nпараллелизации сортировки ${sort_impl}\n(матрицы - ${matrices_impl})")
+    plot_title=$(echo "Исследование масштабируемости при\nпараллелизации сортировки ${sort_impl}\n(матрицы - ${matrices_impl})")
+fi
 
 # @brief output path
 output="${csvtable/.csv/.png}"

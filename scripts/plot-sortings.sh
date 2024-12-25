@@ -36,7 +36,7 @@ set -ueo pipefail
 # @brief matrices implementation
 matrices_impl=$(case "${csvtable}" in
     (*table*)
-        echo 'двумерный массив'
+        echo 'двухмерный массив'
         ;;
     (*vector*)
         echo 'одномерный массив'
