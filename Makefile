@@ -28,10 +28,15 @@ all: help
 
 help:
 	@echo 'Targets:'
-	@echo '- just-main . build default main program with no parallelization'
-	@echo '- omp-main  . build main with parallelization using OpenMP'
-	@echo '- pt-main   . build main with parallelization using Posix Threads'
-	@echo '- ocl-main  . build main with parallelization using OpenCL'
+	@echo '- just-main       . build default main program with no parallelization'
+	@echo '- clean-just-main . cleans built program'
+	@echo '- omp-main        . build main with parallelization using OpenMP'
+	@echo '- clean-omp-main  . cleans built program'
+	@echo '- pt-main         . build main with parallelization using Posix Threads'
+	@echo '- clean-pt-main   . cleans built program'
+	@echo '- ocl-main        . build main with parallelization using OpenCL'
+	@echo '- clean-ocl-main  . cleans built program'
+	@echo '- clean-build     . removes build folder'
 
 just-main: $(addsuffix .o,$(addprefix $(BUILDDIR)/,$(TARGETS)))
 	$(LD) $(LDFLAGS) $^ -o $@ $(LIBS)
