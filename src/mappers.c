@@ -34,7 +34,7 @@ cl_kernel combine_abs_sin_sum_kern = NULL;
 cl_kernel shift_matrices_kern = NULL;
 
 
-int map_matrix(struct matrix* matp, applicator fn)
+int _map_matrix(struct matrix* matp, applicator fn)
 {
     int ret = 0;
     cl_mem ocl_mem = NULL;
@@ -77,7 +77,7 @@ exit:
     return ret;
 }
 
-int map_matrices(struct matrix* restrict srcp, struct matrix* restrict dstp,
+int _map_matrices(struct matrix* restrict srcp, struct matrix* restrict dstp,
                  combiner fn)
 {
     int ret = 0;
@@ -133,7 +133,7 @@ exit:
     return ret;
 }
 
-int shift_matrices(struct matrix* restrict srcp, struct matrix* restrict dstp,
+int _shift_matrices(struct matrix* restrict srcp, struct matrix* restrict dstp,
                    size_t shift)
 {
     int ret = 0;
@@ -217,7 +217,7 @@ static void* _map_element_routine(void* args)
     return (void*) ((intptr_t) 0);
 }
 
-int map_matrix(struct matrix* matp, applicator fn)
+int _map_matrix(struct matrix* matp, applicator fn)
 {
     if (!matp) return -1;
     size_t k = 0;
@@ -261,7 +261,7 @@ static void* _map_matrices_routine(void* args)
     return (void*) ((intptr_t) 0);
 }
 
-int map_matrices(struct matrix* restrict srcp, struct matrix* restrict dstp,
+int _map_matrices(struct matrix* restrict srcp, struct matrix* restrict dstp,
                  combiner fn)
 {
     if (!srcp || !dstp) return -1;
@@ -311,7 +311,7 @@ static void* _shift_matrices_routine(void* args)
     return (void*) ((intptr_t) 0);
 }
 
-int shift_matrices(struct matrix* restrict srcp, struct matrix* restrict dstp,
+int _shift_matrices(struct matrix* restrict srcp, struct matrix* restrict dstp,
                    size_t shift)
 {
     if (!srcp || !dstp) return -1;
@@ -336,7 +336,7 @@ int shift_matrices(struct matrix* restrict srcp, struct matrix* restrict dstp,
     return 0;
 }
 #elif defined(_OPENMP)
-int map_matrix(struct matrix* matp, applicator fn)
+int _map_matrix(struct matrix* matp, applicator fn)
 {
     int ret = 0;
     if (!matp) return -1;
@@ -363,7 +363,7 @@ int map_matrix(struct matrix* matp, applicator fn)
     return ret;
 }
 
-int map_matrices(struct matrix* restrict srcp, struct matrix* restrict dstp,
+int _map_matrices(struct matrix* restrict srcp, struct matrix* restrict dstp,
                  combiner fn)
 {
     int ret = 0;
@@ -403,7 +403,7 @@ int map_matrices(struct matrix* restrict srcp, struct matrix* restrict dstp,
     return ret;
 }
 
-int shift_matrices(struct matrix* restrict srcp, struct matrix* restrict dstp,
+int _shift_matrices(struct matrix* restrict srcp, struct matrix* restrict dstp,
                    size_t shift)
 {
     int ret = 0;
@@ -435,7 +435,7 @@ int shift_matrices(struct matrix* restrict srcp, struct matrix* restrict dstp,
     return ret;
 }
 #else
-int map_matrix(struct matrix* matp, applicator fn)
+int _map_matrix(struct matrix* matp, applicator fn)
 {
     int ret = 0;
     if (!matp) return -1;
@@ -450,7 +450,7 @@ int map_matrix(struct matrix* matp, applicator fn)
     return ret;
 }
 
-int map_matrices(struct matrix* restrict srcp, struct matrix* restrict dstp,
+int _map_matrices(struct matrix* restrict srcp, struct matrix* restrict dstp,
                  combiner fn)
 {
     int ret = 0;
@@ -472,7 +472,7 @@ int map_matrices(struct matrix* restrict srcp, struct matrix* restrict dstp,
     return ret;
 }
 
-int shift_matrices(struct matrix* restrict srcp, struct matrix* restrict dstp,
+int _shift_matrices(struct matrix* restrict srcp, struct matrix* restrict dstp,
                    size_t shift)
 {
     int ret = 0;
