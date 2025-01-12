@@ -41,7 +41,7 @@ cl_kernel selection_sort_kern = NULL;
 #else
 #define SELECTION_SORT_LOCAL_SIZE (2)
 #endif
-int sort_rows(struct matrix* matp)
+int _sort_rows(struct matrix* matp)
 {
     int ret = 0;
     cl_mem ocl_mem = NULL;
@@ -192,7 +192,7 @@ static void* _rowsort_routine(void* args)
     return (void*) ((intptr_t) ret);
 }
 
-int sort_rows(struct matrix* matp)
+int _sort_rows(struct matrix* matp)
 {
     if (!matp) return -1;
     struct _rowsort_args tasks_args[matp->rows];
@@ -271,7 +271,7 @@ static void sort_cols(size_t size, double* array)
 #endif
 }
 
-int sort_rows(struct matrix* matp)
+int _sort_rows(struct matrix* matp)
 {
     if (!matp) return -1;
     #pragma omp parallel for default(none) shared(matp) schedule(runtime)
@@ -280,7 +280,7 @@ int sort_rows(struct matrix* matp)
     return 0;
 }
 #else
-int sort_rows(struct matrix* matp)
+int _sort_rows(struct matrix* matp)
 {
     int ret = 0;
     if (!matp) return -1;

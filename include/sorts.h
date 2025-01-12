@@ -3,6 +3,7 @@
 
 #include "matrix.h"
 
-int sort_rows(struct matrix* matp);
+int _sort_rows(struct matrix* matp);
 
+#define sort_rows(matp) _sort_rows((matp))
 #endif // _SORTS_H_
