@@ -3,6 +3,7 @@
 
 #include "matrix.h"
 
-int reduce(struct matrix* matp, double* reduction);
+int _reduce(struct matrix* matp, double* reduction);
 
+#define reduce(matp, reduction) _reduce((matp), (reduction))
 #endif // _REDUCERS_H_

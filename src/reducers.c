@@ -21,7 +21,7 @@ extern cl_command_queue ocl_queue;
 
 cl_kernel reduce_kern = NULL;
 
-int reduce(struct matrix* matp, double* reduction)
+int _reduce(struct matrix* matp, double* reduction)
 {
     int ret = 0;
     cl_mem mat_mem = NULL, psums_mem = NULL;
@@ -112,7 +112,7 @@ static void* _reduce_vec_routine(void* args)
     return (void*) ((intptr_t) 0);
 }
 
-int reduce(struct matrix* matp, double* reduction)
+int _reduce(struct matrix* matp, double* reduction)
 {
     double X = 0.0;
     if (!matp || !reduction) return -1;
@@ -133,7 +133,7 @@ int reduce(struct matrix* matp, double* reduction)
     return 0;
 }
 #elif defined(_OPENMP)
-int reduce(struct matrix* matp, double* reduction)
+int _reduce(struct matrix* matp, double* reduction)
 {
     int ret = 0;
     double X = 0.0;
@@ -179,7 +179,7 @@ int reduce(struct matrix* matp, double* reduction)
     return ret;
 }
 #else
-int reduce(struct matrix* matp, double* reduction)
+int _reduce(struct matrix* matp, double* reduction)
 {
     int ret = 0;
     if (!matp || !reduction) return -1;
