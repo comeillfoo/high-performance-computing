@@ -18,7 +18,7 @@ extern cl_command_queue ocl_queue;
 cl_kernel merge_by_pow_kern = NULL;
 
 
-int merge_matrices(struct matrix* restrict srcp, struct matrix* restrict dstp,
+int _merge_matrices(struct matrix* restrict srcp, struct matrix* restrict dstp,
                    merger fn)
 {
     int ret = 0;
@@ -113,7 +113,7 @@ static void* _merge_matrices_routine(void* args)
     return (void*) ((intptr_t) 0);
 }
 
-int merge_matrices(struct matrix* restrict srcp, struct matrix* restrict dstp,
+int _merge_matrices(struct matrix* restrict srcp, struct matrix* restrict dstp,
                    merger fn)
 {
     if (!srcp || !dstp) return -1;
@@ -137,7 +137,7 @@ int merge_matrices(struct matrix* restrict srcp, struct matrix* restrict dstp,
     return 0;
 }
 #elif defined(_OPENMP)
-int merge_matrices(struct matrix* restrict srcp, struct matrix* restrict dstp,
+int _merge_matrices(struct matrix* restrict srcp, struct matrix* restrict dstp,
                    merger fn)
 {
     int ret = 0;
@@ -175,7 +175,7 @@ int merge_matrices(struct matrix* restrict srcp, struct matrix* restrict dstp,
     return ret;
 }
 #else
-int merge_matrices(struct matrix* restrict srcp, struct matrix* restrict dstp,
+int _merge_matrices(struct matrix* restrict srcp, struct matrix* restrict dstp,
                    merger fn)
 {
     int ret = 0;
