@@ -153,6 +153,7 @@ cl_mem M1_mem = NULL;
 cl_mem M2_mem = NULL;
 cl_mem Mt_mem = NULL;
 cl_mem M_mem = NULL;
+cl_mem M_psums_mem = NULL;
 
 // mappers
 extern cl_kernel apply_coth_sqrt_kern;
@@ -176,10 +177,6 @@ extern cl_kernel reduce_kern;
 static int library_init(struct matrix* M1, struct matrix* M2, struct matrix* Mt,
                         struct matrix* M)
 {
-    (void)M1;
-    (void)M2;
-    (void)Mt;
-    (void)M;
     int ret = 0;
     FILE* kern_bin_stream = NULL;
     ssize_t kern_bin_sz = -1;
@@ -257,9 +254,37 @@ static int library_init(struct matrix* M1, struct matrix* M2, struct matrix* Mt,
     if (ret) goto err_free_multiply;
     // init reducers kernels
     ret = oclw_create_kernobj_for_function("reduce", ocl_program, &reduce_kern);
-    if (!ret) goto free_kern_bin;
+    if (ret) goto err_free_selection_sort;
 
-    // ret |= oclw_destroy_kernel_object(reduce_kern);
+    // init memory objects
+    ret = oclw_create_memobj(ocl_context, CL_MEM_READ_WRITE, &M1_mem,
+                             sizeof(double) * M1->rows * M1->cols, NULL);
+    if (ret) goto err_free_reduce;
+    ret = oclw_create_memobj(ocl_context, CL_MEM_READ_WRITE, &M2_mem,
+                             sizeof(double) * M2->rows * M2->cols, NULL);
+    if (ret) goto err_free_M1_mem;
+    ret = oclw_create_memobj(ocl_context, CL_MEM_READ_WRITE, &Mt_mem,
+                             sizeof(double) * Mt->rows * Mt->cols, NULL);
+    if (ret) goto err_free_M2_mem;
+    ret = oclw_create_memobj(ocl_context, CL_MEM_READ_WRITE, &M_mem,
+                             sizeof(double) * M->rows * M->cols, NULL);
+    if (ret) goto err_free_Mt_mem;
+    ret = oclw_create_memobj(ocl_context, CL_MEM_READ_WRITE, &M_psums_mem,
+                             sizeof(double) * M->rows, NULL);
+    if (ret) goto err_free_M_mem;
+    if (!ret) goto free_kern_bin;
+    // ret |= oclw_destroy_memobj(M_psums_mem);
+err_free_M_mem:
+    ret |= oclw_destroy_memobj(M_mem);
+err_free_Mt_mem:
+    ret |= oclw_destroy_memobj(Mt_mem);
+err_free_M2_mem:
+    ret |= oclw_destroy_memobj(M2_mem);
+err_free_M1_mem:
+    ret |= oclw_destroy_memobj(M1_mem);
+err_free_reduce:
+    ret |= oclw_destroy_kernel_object(reduce_kern);
+err_free_selection_sort:
     ret |= oclw_destroy_kernel_object(selection_sort_kern);
 err_free_multiply:
     ret |= oclw_destroy_kernel_object(multiply_kern);
@@ -289,6 +314,11 @@ exit:
 static int library_exit()
 {
     int ret = 0;
+    ret |= oclw_destroy_memobj(M_psums_mem);
+    ret |= oclw_destroy_memobj(M_mem);
+    ret |= oclw_destroy_memobj(Mt_mem);
+    ret |= oclw_destroy_memobj(M2_mem);
+    ret |= oclw_destroy_memobj(M1_mem);
     ret |= oclw_destroy_kernel_object(reduce_kern);
     ret |= oclw_destroy_kernel_object(selection_sort_kern);
     ret |= oclw_destroy_kernel_object(multiply_kern);
