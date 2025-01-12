@@ -4,7 +4,8 @@
 #include <stdlib.h>
 #include "matrix.h"
 
-int multiply_matrices(struct matrix* restrict A, struct matrix* restrict B,
-                           struct matrix* restrict C);
+int _multiply_matrices(struct matrix* restrict A, struct matrix* restrict B,
+                       struct matrix* restrict C);
 
+#define multiply_matrices(A, B, C) _multiply_matrices((A), (B), (C))
 #endif // _MULTIPLIERS_H_

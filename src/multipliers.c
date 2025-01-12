@@ -10,7 +10,7 @@ extern cl_command_queue ocl_queue;
 cl_kernel multiply_kern = NULL;
 
 
-int multiply_matrices(struct matrix* restrict A, struct matrix* restrict B,
+int _multiply_matrices(struct matrix* restrict A, struct matrix* restrict B,
                            struct matrix* restrict C)
 {
     int ret = 0;
@@ -108,7 +108,7 @@ static void* _multiply_matrices_routine(void* args)
     return (void*) ((intptr_t) 0);
 }
 
-int multiply_matrices(struct matrix* restrict A, struct matrix* restrict B,
+int _multiply_matrices(struct matrix* restrict A, struct matrix* restrict B,
                            struct matrix* restrict C)
 {
     if (!A || !B || !C || A->cols != B->rows || A->rows != C->rows
@@ -133,7 +133,7 @@ int multiply_matrices(struct matrix* restrict A, struct matrix* restrict B,
     return 0;
 }
 #elif defined(_OPENMP)
-int multiply_matrices(struct matrix* restrict A, struct matrix* restrict B,
+int _multiply_matrices(struct matrix* restrict A, struct matrix* restrict B,
                            struct matrix* restrict C)
 {
     int ret = 0;
@@ -177,7 +177,7 @@ int multiply_matrices(struct matrix* restrict A, struct matrix* restrict B,
     return ret;
 }
 #else
-int multiply_matrices(struct matrix* restrict A, struct matrix* restrict B,
+int _multiply_matrices(struct matrix* restrict A, struct matrix* restrict B,
                            struct matrix* restrict C)
 {
     int ret = 0;
