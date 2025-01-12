@@ -27,12 +27,9 @@ int main(int argc, char* argv[])
     ret = args_parse(argc, argv, &N);
     if (ret) goto exit;
 
-    ret = library_init();
-    if (ret) goto exit;
-
     struct matrix M1 = {0};
     ret = double_matrix_create(N, N / 2, mtype, &M1);
-    if (ret) goto libexit;
+    if (ret) goto exit;
 
     struct matrix M2 = {0};
     ret = double_matrix_create(N / 2, N, mtype, &M2);
@@ -46,51 +43,56 @@ int main(int argc, char* argv[])
     ret = double_matrix_create(N, N, mtype, &M);
     if (ret) goto freeMt;
 
-    ret = stamp_time(&T1);
+    ret = library_init(&M1, &M2, &Mt, &M);
     if (ret) goto freeM;
+
+    ret = stamp_time(&T1);
+    if (ret) goto libexit;
     for (size_t i = 0; i < 100; ++i) {
         // Generate. Сформировать матрицу M1[N][N / 2], заполнить uniform(1, A).
         // Сформировать матрицу M2[N / 2][N], заполнить uniform(A, 10.0 * A).
         ret = generate_random_matrix(&M1, 1.0, A, i);
-        if (ret) goto freeM;
+        if (ret) goto libexit;
         ret = generate_random_matrix(&M2, A, 10.0 * A, i);
-        if (ret) goto freeM;
+        if (ret) goto libexit;
 
         // Map. В матрице M1 к каждому элементу применить операцию из таблицы.
         // В матрице M2 каждую колонку поочередно сложить с предыдущей
         ret = map_matrix(&M1, apply_coth_sqrt);
-        if (ret) goto freeM;
+        if (ret) goto libexit;
         ret = shift_matrices(&M2, &Mt, 1);
-        if (ret) goto freeM;
+        if (ret) goto libexit;
         ret = map_matrices(&Mt, &M2, combine_abs_sin_sum);
-        if (ret) goto freeM;
+        if (ret) goto libexit;
 
         // Merge. В матрицах М1 и М2 ко всем элементами с одинаковыми индексами
         // попарно применить операцию из таблицы (результат записать в М2).
         ret = merge_matrices(&M1, &M2, merge_by_pow);
-        if (ret) goto freeM;
+        if (ret) goto libexit;
 
         // Multiply. Умножить матрицы M1 и M2
         // M1[N][N / 2] * M2[N / 2][N] = M[N][N]
         ret = multiply_matrices(&M1, &M2, &M);
-        if (ret) goto freeM;
+        if (ret) goto libexit;
 
         // Sort. Полученную матрицу M необходимо отсортировать по строкам
         ret = sort_rows(&M);
-        if (ret) goto freeM;
+        if (ret) goto libexit;
 
         // Reduce. Рассчитать сумму синусов тех элементов матрицы M, которые при
         // делении на минимальный ненулевой элемент массива соответствующей строки дают четное число
         double X = 0.0;
         ret = reduce(&M, &X);
-        if (ret) goto freeM;
+        if (ret) goto libexit;
         printf("X = %lf\n", X);
     }
     ret = stamp_time(&T2);
-    if (ret) goto freeM;
+    if (ret) goto libexit;
     delta_ms = stamps_diff_ms(T1, T2);
     printf("N = %d. Milliseconds passed: %ld\n", N, delta_ms);
 
+libexit:
+    if (library_exit()) ret = -1;
 freeM:
     double_matrix_destroy(M);
 freeMt:
@@ -99,8 +101,6 @@ freeM2:
     double_matrix_destroy(M2);
 freeM1:
     double_matrix_destroy(M1);
-libexit:
-    if (library_exit()) ret = -1;
 exit:
     return ret;
 }
@@ -149,6 +149,11 @@ cl_context ocl_context = NULL;
 cl_command_queue ocl_queue = NULL;
 cl_program ocl_program = NULL;
 
+cl_mem M1_mem = NULL;
+cl_mem M2_mem = NULL;
+cl_mem Mt_mem = NULL;
+cl_mem M_mem = NULL;
+
 // mappers
 extern cl_kernel apply_coth_sqrt_kern;
 extern cl_kernel combine_abs_sin_sum_kern;
@@ -168,8 +173,13 @@ extern cl_kernel selection_sort_kern;
 extern cl_kernel reduce_kern;
 
 
-static int library_init()
+static int library_init(struct matrix* M1, struct matrix* M2, struct matrix* Mt,
+                        struct matrix* M)
 {
+    (void)M1;
+    (void)M2;
+    (void)Mt;
+    (void)M;
     int ret = 0;
     FILE* kern_bin_stream = NULL;
     ssize_t kern_bin_sz = -1;
@@ -300,8 +310,13 @@ static int library_exit()
 struct ptpool* pool = NULL;
 
 
-static int library_init()
+static int library_init(struct matrix* M1, struct matrix* M2, struct matrix* Mt,
+                        struct matrix* M)
 {
+    (void)M1;
+    (void)M2;
+    (void)Mt;
+    (void)M;
     size_t workers = 2;
     enum ptpool_type type = PTPOOLT_DYNAMIC;
     const char* raw_value = getenv("PT_NUM_THREADS");
@@ -332,8 +347,13 @@ static int library_exit()
     return 0;
 }
 #else
-static int library_init()
+static int library_init(struct matrix* M1, struct matrix* M2, struct matrix* Mt,
+                        struct matrix* M)
 {
+    (void)M1;
+    (void)M2;
+    (void)Mt;
+    (void)M;
     return 0;
 }
 
