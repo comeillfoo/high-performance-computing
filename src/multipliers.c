@@ -4,74 +4,42 @@
 #ifdef USE_OPENCL
 #include "oclw.h"
 
-extern cl_context ocl_context;
 extern cl_command_queue ocl_queue;
-
 cl_kernel multiply_kern = NULL;
 
 
 int _multiply_matrices(struct matrix* restrict A, struct matrix* restrict B,
-                           struct matrix* restrict C)
+                       struct matrix* restrict C, cl_mem* restrict A_memp,
+                       cl_mem* restrict B_memp, cl_mem* restrict C_memp,
+                       cl_event event, cl_event* eventp)
 {
     int ret = 0;
-    cl_mem A_mem = NULL, B_mem = NULL, C_mem = NULL;
     if (!A || !B || !C || A->cols != B->rows || A->rows != C->rows
         || B->cols != C->cols)
         return -1;
-    if (!ocl_context || !ocl_queue || !multiply_kern) return -1;
+    if (!ocl_queue || !A_memp || !B_memp || !C_memp || !event || !eventp
+        || !multiply_kern)
+        return -1;
 
-    cl_event wevents[A->rows + B->rows];
-    cl_event cevent = NULL;
-    cl_event revents[C->rows];
-
-    ret = oclw_create_memobj(ocl_context, CL_MEM_READ_ONLY, &A_mem, A->rows *
-                             A->cols * sizeof(double), NULL);
-    if (ret) goto exit;
-    ret = oclw_create_memobj(ocl_context, CL_MEM_READ_ONLY, &B_mem, B->rows *
-                             B->cols * sizeof(double), NULL);
-    if (ret) goto free_A_mem;
-    ret = oclw_create_memobj(ocl_context, CL_MEM_WRITE_ONLY, &C_mem, C->rows *
-                             C->cols * sizeof(double), NULL);
-    if (ret) goto free_B_mem;
     ret = oclw_set_kernel_arg(multiply_kern, 0, sizeof(A->cols), &A->cols,
                               "Acols");
-    if (ret) goto free_C_mem;
-    ret = oclw_set_kernel_arg(multiply_kern, 1, sizeof(cl_mem), &A_mem, "A");
-    if (ret) goto free_C_mem;
-    ret = oclw_set_kernel_arg(multiply_kern, 2, sizeof(cl_mem), &B_mem, "B");
-    if (ret) goto free_C_mem;
-    ret = oclw_set_kernel_arg(multiply_kern, 3, sizeof(cl_mem), &C_mem, "C");
-    if (ret) goto free_C_mem;
-
-    // fill memory objects with matrices
-    ret = oclw_async_write_matrix(A, ocl_queue, A_mem, A->rows, wevents);
-    if (ret) goto free_C_mem;
-    ret = oclw_async_write_matrix(B, ocl_queue, B_mem, B->rows, wevents + A->rows);
-    if (ret) goto free_C_mem;
+    if (ret) goto exit;
+    ret = oclw_set_kernel_arg(multiply_kern, 1, sizeof(cl_mem), A_memp, "A");
+    if (ret) goto exit;
+    ret = oclw_set_kernel_arg(multiply_kern, 2, sizeof(cl_mem), B_memp, "B");
+    if (ret) goto exit;
+    ret = oclw_set_kernel_arg(multiply_kern, 3, sizeof(cl_mem), C_memp, "C");
+    if (ret) goto exit;
 
     // run task on memory objects after writes
     const size_t global_work_size[2] = { A->rows, B->cols };
     cl_int cl_ret = clEnqueueNDRangeKernel(ocl_queue, multiply_kern, 2, NULL,
-                                           global_work_size, NULL, A->rows +
-                                           B->rows, wevents, &cevent);
+                                           global_work_size, NULL, 1, &event,
+                                           eventp);
     if (cl_ret != CL_SUCCESS) {
         oclw_error(cl_ret, "Unable to multiply matrices");
         ret = -1;
     }
-    if (ret) goto free_C_mem;
-
-    // read results into original matrix after completion
-    ret = oclw_async_read_matrix(C, ocl_queue, C_mem, C->rows, revents, &cevent);
-    if (ret) goto free_C_mem;
-
-    // wait till everything is completed
-    ret = oclw_wait_till_completion(C->rows, revents);
-free_C_mem:
-    ret |= oclw_destroy_memobj(C_mem);
-free_B_mem:
-    ret |= oclw_destroy_memobj(B_mem);
-free_A_mem:
-    ret |= oclw_destroy_memobj(A_mem);
 exit:
     return ret;
 }
