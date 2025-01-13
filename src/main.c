@@ -30,6 +30,7 @@ cl_mem M_psums_mem = NULL;
 cl_event map_matrix_event = NULL;
 cl_event shift_matrices_event = NULL;
 cl_event map_matrices_event = NULL;
+cl_event merge_matrices_event = NULL;
 
 // mappers
 extern cl_kernel apply_coth_sqrt_kern;
