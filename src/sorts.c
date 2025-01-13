@@ -31,9 +31,7 @@ static int selection_sort(size_t size, double* array)
 #ifdef USE_OPENCL
 #include "oclw.h"
 
-extern cl_context ocl_context;
 extern cl_command_queue ocl_queue;
-
 cl_kernel selection_sort_kern = NULL;
 
 #ifdef PARALLEL_SORT_ONLY_ROWS
@@ -41,52 +39,32 @@ cl_kernel selection_sort_kern = NULL;
 #else
 #define SELECTION_SORT_LOCAL_SIZE (2)
 #endif
-int _sort_rows(struct matrix* matp)
+int _sort_rows(struct matrix* matp, cl_mem* ocl_memp, cl_event event,
+               cl_event* eventp)
 {
     int ret = 0;
-    cl_mem ocl_mem = NULL;
     if (!matp) return -1;
     if (!matp->rows || !matp->cols) return 0;
-    if (!ocl_context || !ocl_queue || !selection_sort_kern) return -1;
+    if (!ocl_queue || !ocl_memp || !event || !eventp || !selection_sort_kern)
+        return -1;
 
-    cl_event wevents[matp->rows];
-    cl_event cevent = NULL;
-    cl_event revents[matp->rows];
-
-    ret = oclw_create_memobj(ocl_context, CL_MEM_READ_WRITE, &ocl_mem, matp->rows
-                             * matp->cols * sizeof(double), NULL);
-    if (ret) goto exit;
     ret = oclw_set_kernel_arg(selection_sort_kern, 0, sizeof(matp->cols),
                               &matp->cols, "size");
-    if (ret) goto free_memobj;
-    ret = oclw_set_kernel_arg(selection_sort_kern, 1, sizeof(cl_mem), &ocl_mem,
+    if (ret) goto exit;
+    ret = oclw_set_kernel_arg(selection_sort_kern, 1, sizeof(cl_mem), ocl_memp,
                               "matrix");
-    if (ret) goto free_memobj;
+    if (ret) goto exit;
 #ifndef PARALLEL_SORT_ONLY_ROWS
     ret = oclw_set_kernel_arg(selection_sort_kern, 2, sizeof(double) * matp->cols,
                               NULL, "halves");
-    if (ret) goto free_memobj;
+    if (ret) goto exit;
 #endif
-    // fill memory object with rows
-    ret = oclw_async_write_matrix(matp, ocl_queue, ocl_mem, matp->rows, wevents);
-    if (ret) goto free_memobj;
 
     // run task on memory object after writes
     size_t local_work_size = SELECTION_SORT_LOCAL_SIZE;
     ret = oclw_async_run_task_after(ocl_queue, selection_sort_kern, matp->rows *
-                                    local_work_size, &local_work_size,
-                                    matp->rows, wevents, &cevent);
-    if (ret) goto free_memobj;
-
-    // read results into original matrix after completion
-    ret = oclw_async_read_matrix(matp, ocl_queue, ocl_mem, matp->rows, revents,
-                                 &cevent);
-    if (ret) goto free_memobj;
-
-    // wait till everything is completed
-    ret = oclw_wait_till_completion(matp->rows, revents);
-free_memobj:
-    ret |= oclw_destroy_memobj(ocl_mem);
+                                    local_work_size, &local_work_size, 1, &event,
+                                    eventp);
 exit:
     return ret;
 }
