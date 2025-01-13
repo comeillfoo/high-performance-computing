@@ -10,10 +10,45 @@
 #include "sorts.h"
 #include "reducers.h"
 #include "futils.h"
+#ifdef USE_OPENCL
+#include "oclw.h"
+#include <stdlib.h>
+
+
+cl_platform_id ocl_platform_id = NULL;
+cl_device_id ocl_device_id = NULL;
+cl_context ocl_context = NULL;
+cl_command_queue ocl_queue = NULL;
+cl_program ocl_program = NULL;
+
+cl_mem M1_mem = NULL;
+cl_mem M2_mem = NULL;
+cl_mem Mt_mem = NULL;
+cl_mem M_mem = NULL;
+cl_mem M_psums_mem = NULL;
+
+cl_event map_matrix_event = NULL;
+cl_event shift_matrices_event = NULL;
+cl_event map_matrices_event = NULL;
+
+// mappers
+extern cl_kernel apply_coth_sqrt_kern;
+extern cl_kernel combine_abs_sin_sum_kern;
+extern cl_kernel shift_matrices_kern;
+// mergers
+extern cl_kernel merge_by_pow_kern;
+// multipliers
+extern cl_kernel multiply_kern;
+// sorts
+extern cl_kernel selection_sort_kern;
+// reducers
+extern cl_kernel reduce_kern;
+#endif
 
 static int args_parse(int argc, char* argv[], int* Np);
 static enum matrix_type env_parse_matrix_type();
-static int library_init();
+static int library_init(struct matrix* M1, struct matrix* M2, struct matrix* Mt,
+                        struct matrix* M);
 static int library_exit();
 
 int main(int argc, char* argv[])
@@ -139,39 +174,11 @@ static enum matrix_type env_parse_matrix_type()
 
 // #define USE_OPENCL
 #ifdef USE_OPENCL
-#include "oclw.h"
-#include <stdlib.h>
-
-
-cl_platform_id ocl_platform_id = NULL;
-cl_device_id ocl_device_id = NULL;
-cl_context ocl_context = NULL;
-cl_command_queue ocl_queue = NULL;
-cl_program ocl_program = NULL;
-
-cl_mem M1_mem = NULL;
-cl_mem M2_mem = NULL;
-cl_mem Mt_mem = NULL;
-cl_mem M_mem = NULL;
-cl_mem M_psums_mem = NULL;
-
-// mappers
-extern cl_kernel apply_coth_sqrt_kern;
-extern cl_kernel combine_abs_sin_sum_kern;
-extern cl_kernel shift_matrices_kern;
-// mergers
-extern cl_kernel merge_by_pow_kern;
-// multipliers
-extern cl_kernel multiply_kern;
-// sorts
-extern cl_kernel selection_sort_kern;
 #ifdef PARALLEL_SORT_ONLY_ROWS
 #define SELECTION_SORT_KERNEL_NAME ("selection_sort_only_row")
 #else
 #define SELECTION_SORT_KERNEL_NAME ("selection_sort_halves")
 #endif
-// reducers
-extern cl_kernel reduce_kern;
 
 
 static int library_init(struct matrix* M1, struct matrix* M2, struct matrix* Mt,

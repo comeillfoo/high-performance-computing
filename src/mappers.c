@@ -34,162 +34,89 @@ cl_kernel combine_abs_sin_sum_kern = NULL;
 cl_kernel shift_matrices_kern = NULL;
 
 
-int _map_matrix(struct matrix* matp, applicator fn)
+int _map_matrix(struct matrix* matp, cl_mem* ocl_memp, cl_kernel ocl_kern,
+                cl_event* eventp)
 {
     int ret = 0;
-    cl_mem ocl_mem = NULL;
-    cl_kernel ocl_kern = NULL;
     if (!matp) return -1;
     if (!matp->rows || !matp->cols) return 0;
 
-    if (fn == apply_coth_sqrt)
-        ocl_kern = apply_coth_sqrt_kern;
-    if (!ocl_context || !ocl_queue || !ocl_kern) return -1;
+    if (!ocl_queue || !ocl_memp || !ocl_kern || !eventp) return -1;
 
     cl_event wevents[matp->rows];
-    cl_event cevent = NULL;
-    cl_event revents[matp->rows];
-
-    ret = oclw_create_memobj(ocl_context, CL_MEM_READ_WRITE, &ocl_mem,
-                             sizeof(double) * matp->rows * matp->cols, NULL);
+    ret = oclw_set_kernel_arg(ocl_kern, 0, sizeof(cl_mem), ocl_memp, "vector");
     if (ret) goto exit;
-    ret = oclw_set_kernel_arg(ocl_kern, 0, sizeof(cl_mem), &ocl_mem, "vector");
-    if (ret) goto free_memobj;
     // fill memory object with rows
-    ret = oclw_async_write_matrix(matp, ocl_queue, ocl_mem, matp->rows, wevents);
-    if (ret) goto free_memobj;
+    ret = oclw_async_write_matrix(matp, ocl_queue, *ocl_memp, matp->rows, wevents);
+    if (ret) goto exit;
 
     // run task on memory object after writes
     ret = oclw_async_run_task_after(ocl_queue, ocl_kern, matp->rows * matp->cols,
-                                    NULL, matp->rows, wevents, &cevent);
-    if (ret) goto free_memobj;
-
-    // read results into original matrix after completion
-    ret = oclw_async_read_matrix(matp, ocl_queue, ocl_mem, matp->rows, revents,
-                                 &cevent);
-    if (ret) goto free_memobj;
-
-    // wait till everything is completed
-    ret = oclw_wait_till_completion(matp->rows, revents);
-free_memobj:
-    ret |= oclw_destroy_memobj(ocl_mem);
+                                    NULL, matp->rows, wevents, eventp);
 exit:
     return ret;
 }
 
 int _map_matrices(struct matrix* restrict srcp, struct matrix* restrict dstp,
-                 combiner fn)
+                  cl_mem* restrict src_memp, cl_mem* restrict dst_memp,
+                  cl_kernel ocl_kern, cl_event event, cl_event* eventp)
 {
     int ret = 0;
-    cl_kernel ocl_kern = NULL;
-    cl_mem src_mem = NULL, dst_mem = NULL;
     if (!srcp || !dstp) return -1;
     if (srcp->rows != dstp->rows || srcp->cols != dstp->cols)
         return -1;
 
-    if (fn == combine_abs_sin_sum)
-        ocl_kern = combine_abs_sin_sum_kern;
-    if (!ocl_context || !ocl_queue || !ocl_kern) return -1;
+    if (!ocl_queue || !src_memp || !dst_memp || !event || !eventp || !ocl_kern)
+        return -1;
 
-    cl_event wevents[srcp->rows + dstp->rows];
-    cl_event cevent = NULL;
-    cl_event revents[dstp->rows];
-
-    ret = oclw_create_memobj(ocl_context, CL_MEM_READ_ONLY, &src_mem,
-                             sizeof(double) * srcp->rows * srcp->cols, NULL);
+    ret = oclw_set_kernel_arg(ocl_kern, 0, sizeof(cl_mem), src_memp, "source");
     if (ret) goto exit;
-    ret = oclw_create_memobj(ocl_context, CL_MEM_READ_WRITE, &dst_mem,
-                             sizeof(double) * dstp->rows * dstp->cols, NULL);
-    if (ret) goto free_src_mem;
-    ret = oclw_set_kernel_arg(ocl_kern, 0, sizeof(cl_mem), &src_mem, "source");
-    if (ret) goto free_dst_mem;
-    ret = oclw_set_kernel_arg(ocl_kern, 1, sizeof(cl_mem), &dst_mem, "target");
-    if (ret) goto free_dst_mem;
-
-    // fill memory objects with matrices
-    ret = oclw_async_write_matrix(srcp, ocl_queue, src_mem, srcp->rows, wevents);
-    if (ret) goto free_dst_mem;
-    ret = oclw_async_write_matrix(dstp, ocl_queue, dst_mem, dstp->rows,
-                                  wevents + srcp->rows);
-    if (ret) goto free_dst_mem;
+    ret = oclw_set_kernel_arg(ocl_kern, 1, sizeof(cl_mem), dst_memp, "target");
+    if (ret) goto exit;
 
     // run task on memory objects after writes
     ret = oclw_async_run_task_after(ocl_queue, ocl_kern, srcp->rows * srcp->cols,
-                                    NULL, srcp->rows + dstp->rows, wevents, &cevent);
-    if (ret) goto free_dst_mem;
-
-    // read results into original matrix after completion
-    ret = oclw_async_read_matrix(dstp, ocl_queue, dst_mem, dstp->rows, revents,
-                                 &cevent);
-    if (ret) goto free_dst_mem;
-
-    // wait till everything is completed
-    ret = oclw_wait_till_completion(dstp->rows, revents);
-free_dst_mem:
-    ret |= oclw_destroy_memobj(dst_mem);
-free_src_mem:
-    ret |= oclw_destroy_memobj(src_mem);
+                                    NULL, 1, &event, eventp);
 exit:
     return ret;
 }
 
 int _shift_matrices(struct matrix* restrict srcp, struct matrix* restrict dstp,
-                   size_t shift)
+                    cl_mem* restrict src_memp, cl_mem* restrict dst_memp,
+                    size_t shift, cl_event* eventp)
 {
     int ret = 0;
-    cl_mem src_mem = NULL, dst_mem = NULL;
     if (!srcp || !dstp) return -1;
     if (srcp->rows != dstp->rows || srcp->cols != dstp->cols)
         return -1;
 
-    if (!ocl_context || !ocl_queue || !shift_matrices_kern) return -1;
+    if (!ocl_queue || !src_memp || !dst_memp || !shift_matrices_kern || !eventp)
+        return -1;
 
     cl_event wevents[srcp->rows];
-    cl_event cevent = NULL;
-    cl_event revents[dstp->rows];
-
-    ret = oclw_create_memobj(ocl_context, CL_MEM_READ_ONLY, &src_mem,
-                             sizeof(double) * srcp->rows * srcp->cols, NULL);
-    if (ret) goto exit;
-    ret = oclw_create_memobj(ocl_context, CL_MEM_WRITE_ONLY, &dst_mem,
-                             sizeof(double) * dstp->rows * dstp->cols, NULL);
-    if (ret) goto free_src_mem;
-    ret = oclw_set_kernel_arg(shift_matrices_kern, 0, sizeof(cl_mem), &src_mem,
+    ret = oclw_set_kernel_arg(shift_matrices_kern, 0, sizeof(cl_mem), src_memp,
                               "source");
-    if (ret) goto free_dst_mem;
-    ret = oclw_set_kernel_arg(shift_matrices_kern, 1, sizeof(cl_mem), &dst_mem,
+    if (ret) goto exit;
+    ret = oclw_set_kernel_arg(shift_matrices_kern, 1, sizeof(cl_mem), dst_memp,
                               "target");
-    if (ret) goto free_dst_mem;
+    if (ret) goto exit;
     ret = oclw_set_kernel_arg(shift_matrices_kern, 2, sizeof(shift), &shift,
                               "shift");
-    if (ret) goto free_dst_mem;
+    if (ret) goto exit;
 
     // fill memory objects with matrices
-    ret = oclw_async_write_matrix(srcp, ocl_queue, src_mem, srcp->rows, wevents);
-    if (ret) goto free_dst_mem;
+    ret = oclw_async_write_matrix(srcp, ocl_queue, *src_memp, srcp->rows, wevents);
+    if (ret) goto exit;
 
     // run task on memory objects after writes
     const size_t global_work_size[2] = { srcp->rows, srcp->cols };
     cl_int cl_ret = clEnqueueNDRangeKernel(ocl_queue, shift_matrices_kern, 2,
                                            NULL, global_work_size, NULL,
-                                           srcp->rows, wevents, &cevent);
+                                           srcp->rows, wevents, eventp);
     if (cl_ret != CL_SUCCESS) {
         oclw_error(cl_ret, "Unable to shift matrices");
         ret = -1;
     }
-    if (ret) goto free_dst_mem;
-
-    // read results into original matrix after completion
-    ret = oclw_async_read_matrix(dstp, ocl_queue, dst_mem, dstp->rows, revents,
-                                 &cevent);
-    if (ret) goto free_dst_mem;
-
-    // wait till everything is completed
-    ret = oclw_wait_till_completion(dstp->rows, revents);
-free_dst_mem:
-    ret |= oclw_destroy_memobj(dst_mem);
-free_src_mem:
-    ret |= oclw_destroy_memobj(src_mem);
 exit:
     return ret;
 }
