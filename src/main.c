@@ -279,7 +279,7 @@ static int library_init(struct matrix* M1, struct matrix* M2, struct matrix* Mt,
     ret = oclw_create_memobj(ocl_context, CL_MEM_READ_WRITE, &M_mem,
                              sizeof(double) * M->rows * M->cols, NULL);
     if (ret) goto err_free_Mt_mem;
-    ret = oclw_create_memobj(ocl_context, CL_MEM_READ_WRITE, &M_psums_mem,
+    ret = oclw_create_memobj(ocl_context, CL_MEM_WRITE_ONLY, &M_psums_mem,
                              sizeof(double) * M->rows, NULL);
     if (ret) goto err_free_M_mem;
     if (!ret) goto free_kern_bin;
