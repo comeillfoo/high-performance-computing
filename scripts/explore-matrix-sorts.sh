@@ -9,6 +9,12 @@ TESTS_NR=16
 # @brief high N limit
 HIGH_N_LIMIT=100
 
+# @brief low N limit
+LOW_N_LIMIT=2
+
+# @brief step for N
+STEP=1
+
 usage()
 {
     cat <<EOF
@@ -21,6 +27,8 @@ with target 'clean-<makefile-target>'
 Options:
     -h, --help   Prints this help message
     -H, --high   Sets high limit for testing task size (N), default ${HIGH_N_LIMIT}
+    -L, --low    Sets low limit for testing task size (N), default ${LOW_N_LIMIT}
+    -S, --step   Sets step for testing task size (N), default ${STEP}
     -T, --tests  Number of tests to make, default ${TESTS_NR}
 EOF
     exit 22 # EINVAL: Invalid argument
@@ -34,6 +42,16 @@ while true; do
         -H|--high)
             [ "$2" -lt 2 ] && usage
             HIGH_N_LIMIT="$2"
+            shift 2
+            ;;
+        -L|--low)
+            [ "$2" -lt 2 ] && usage
+            LOW_N_LIMIT="$2"
+            shift 2
+            ;;
+        -S|--step)
+            [ "$2" -lt 1 ] && usage
+            STEP="$2"
             shift 2
             ;;
         -T|--tests)
@@ -56,6 +74,8 @@ build_target="$1"
 benchmark="./${build_target}"
 
 set -ueo pipefail
+[ "${LOW_N_LIMIT}" -gt "${HIGH_N_LIMIT}" ] && usage
+[ "$((HIGH_N_LIMIT - LOW_N_LIMIT))" -lt "${STEP}" ] && usage
 
 # parallelize only rows sorting
 make "clean-${build_target}" &>/dev/null
@@ -66,7 +86,10 @@ if [ ! -f "${benchmark}" ]; then
     exit 2 # ENOENT: No such file or directory
 fi
 "${TOP_DIR}/explore-task-scalability.sh" --tests "${TESTS_NR}" \
-    --high "${HIGH_N_LIMIT}" "${benchmark}" \
+    --low "${LOW_N_LIMIT}" \
+    --step "${STEP}" \
+    --high "${HIGH_N_LIMIT}" \
+    "${benchmark}" \
     | awk -W interactive 'NR==1 {print "MATRIX SORT,"$0; next} {print "RO,"$0}' -
 
 # parallelize rows and columns
@@ -78,5 +101,8 @@ if [ ! -f "${benchmark}" ]; then
     exit 2 # ENOENT: No such file or directory
 fi
 "${TOP_DIR}/explore-task-scalability.sh" --tests "${TESTS_NR}" \
-    --high "${HIGH_N_LIMIT}" "${benchmark}" \
+    --low "${LOW_N_LIMIT}" \
+    --step "${STEP}" \
+    --high "${HIGH_N_LIMIT}" \
+    "${benchmark}" \
     | awk -W interactive 'NR>1 {print "RC,"$0}' -

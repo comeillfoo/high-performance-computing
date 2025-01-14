@@ -9,6 +9,12 @@ TESTS_NR=16
 # @brief high N limit
 HIGH_N_LIMIT=100
 
+# @brief low N limit
+LOW_N_LIMIT=2
+
+# @brief step for N
+STEP=1
+
 # @brief threads number upper limit
 HIGH_NUM_THREADS="$(($(nproc) * 2))"
 
@@ -31,7 +37,9 @@ ${HIGH_NUM_THREADS}. Also, sets OMP_SCHEDULE='static,1' and OMP_CANCELLATION=tru
 Options:
     -h, --help   Prints this help message
     -H, --high   Sets high limit for testing task size (N), default ${HIGH_N_LIMIT}
-    -l, --low    Sets low limit for threads number, default ${LOW_NUM_THREADS}
+    -L, --low    Sets low limit for testing task size (N), default ${LOW_N_LIMIT}
+    -S, --step   Sets step for testing task size (N), default ${STEP}
+    -m, --min    Sets low limit for threads number, default ${LOW_NUM_THREADS}
     -T, --tests  Number of tests to make, default ${TESTS_NR}
 EOF
     exit 22 # EINVAL: Invalid argument
@@ -47,7 +55,17 @@ while true; do
             HIGH_N_LIMIT="$2"
             shift 2
             ;;
-        -l|--low)
+        -L|--low)
+            [ "$2" -lt 2 ] && usage
+            LOW_N_LIMIT="$2"
+            shift 2
+            ;;
+        -S|--step)
+            [ "$2" -lt 1 ] && usage
+            STEP="$2"
+            shift 2
+            ;;
+        -m|--min)
             [ "$2" -gt "${HIGH_NUM_THREADS}" ] && usage
             [ "$2" -lt 1 ] && usage
             LOW_NUM_THREADS="$2"
@@ -66,6 +84,8 @@ done
 
 MK_BUILD_TARGET="${1:-${MK_BUILD_TARGET}}"
 set -ueo pipefail
+[ "${LOW_N_LIMIT}" -gt "${HIGH_N_LIMIT}" ] && usage
+[ "$((HIGH_N_LIMIT - LOW_N_LIMIT))" -lt "${STEP}" ] && usage
 
 export OMP_CANCELLATION=true
 export OMP_SCHEDULE='static,1'
@@ -77,7 +97,10 @@ for threads_nr in $(seq "${LOW_NUM_THREADS}" "${HIGH_NUM_THREADS}"); do
         program_text="NR>1 {print \"${threads_nr},\"\$0}"
     fi
     "${TOP_DIR}/explore-matrix-sorts.sh" --tests "${TESTS_NR}" \
-        --high "${HIGH_N_LIMIT}" "${MK_BUILD_TARGET}" \
+        --low "${LOW_N_LIMIT}" \
+        --step "${STEP}" \
+        --high "${HIGH_N_LIMIT}" \
+        "${MK_BUILD_TARGET}" \
         | awk -W interactive "${program_text}" -
     count=$((count + 1))
 done

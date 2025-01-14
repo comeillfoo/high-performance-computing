@@ -9,6 +9,12 @@ TESTS_NR=16
 # @brief high N limit
 HIGH_N_LIMIT=100
 
+# @brief low N limit
+LOW_N_LIMIT=2
+
+# @brief step for N
+STEP=1
+
 # @brief default threads number
 PT_NUM_THREADS="$(nproc)"
 
@@ -26,6 +32,8 @@ Also, sets PT_NUM_THREADS=${PT_NUM_THREADS}
 Options:
     -h, --help       Prints this help message
     -H, --high       High limit for testing task size (N), default ${HIGH_N_LIMIT}
+    -L, --low        Sets low limit for testing task size (N), default ${LOW_N_LIMIT}
+    -S, --step       Sets step for testing task size (N), default ${STEP}
     -T, --tests      Number of tests to make, default ${TESTS_NR}
     -p, --threads    Number of threads to use, default ${PT_NUM_THREADS}
 EOF
@@ -40,6 +48,16 @@ while true; do
         -H|--high)
             [ "$2" -lt 2 ] && usage
             HIGH_N_LIMIT="$2"
+            shift 2
+            ;;
+        -L|--low)
+            [ "$2" -lt 2 ] && usage
+            LOW_N_LIMIT="$2"
+            shift 2
+            ;;
+        -S|--step)
+            [ "$2" -lt 1 ] && usage
+            STEP="$2"
             shift 2
             ;;
         -T|--tests)
@@ -60,6 +78,8 @@ done
 
 MK_BUILD_TARGET="${1:-${MK_BUILD_TARGET}}"
 set -ueo pipefail
+[ "${LOW_N_LIMIT}" -gt "${HIGH_N_LIMIT}" ] && usage
+[ "$((HIGH_N_LIMIT - LOW_N_LIMIT))" -lt "${STEP}" ] && usage
 
 export PT_NUM_THREADS
 count=0
@@ -71,7 +91,10 @@ for pt_type in 'static' 'dynamic'; do
         program_text="NR>1 {print \"${pt_type},\"\$0}"
     fi
     "${TOP_DIR}/explore-matrix-sorts.sh" --tests "${TESTS_NR}" \
-        --high "${HIGH_N_LIMIT}" "${MK_BUILD_TARGET}" \
+        --low "${LOW_N_LIMIT}" \
+        --step "${STEP}" \
+        --high "${HIGH_N_LIMIT}" \
+        "${MK_BUILD_TARGET}" \
         | awk -W interactive "${program_text}" -
     count=$((count + 1))
 done
