@@ -40,6 +40,7 @@ Options:
     -L, --low    Sets low limit for testing task size (N), default ${LOW_N_LIMIT}
     -S, --step   Sets step for testing task size (N), default ${STEP}
     -m, --min    Sets low limit for threads number, default ${LOW_NUM_THREADS}
+    -M, --max    Sets high limit for threads number, default ${HIGH_NUM_THREADS}
     -T, --tests  Number of tests to make, default ${TESTS_NR}
 EOF
     exit 22 # EINVAL: Invalid argument
@@ -71,6 +72,12 @@ while true; do
             LOW_NUM_THREADS="$2"
             shift 2
             ;;
+        -M|--max)
+            [ "$2" -lt "${LOW_NUM_THREADS}" ] && usage
+            [ "$2" -lt 1 ] && usage
+            HIGH_NUM_THREADS="$2"
+            shift 2
+            ;;
         -T|--tests)
             [ "$2" -lt 1 ] && usage
             TESTS_NR="$2"
@@ -86,6 +93,7 @@ MK_BUILD_TARGET="${1:-${MK_BUILD_TARGET}}"
 set -ueo pipefail
 [ "${LOW_N_LIMIT}" -gt "${HIGH_N_LIMIT}" ] && usage
 [ "$((HIGH_N_LIMIT - LOW_N_LIMIT))" -lt "${STEP}" ] && usage
+[ "${LOW_NUM_THREADS}" -gt "${HIGH_NUM_THREADS}" ] && usage
 
 export OMP_CANCELLATION=true
 export OMP_SCHEDULE='static,1'
